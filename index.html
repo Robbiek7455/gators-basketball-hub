@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Florida Gators Men's Basketball Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <meta name="description" content="Florida Gators men's basketball hub: rosters, past teams, live stats, news, and for-fun player props." />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" alt="Florida Gators logo" class="logo" />
+      <div class="brand-text">
+        <h1>Florida Gators</h1>
+        <h2>Men’s Basketball Hub</h2>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Main sections">
+      <button class="tab active" data-tab="roster" role="tab" aria-selected="true">Roster</button>
+      <button class="tab" data-tab="past" role="tab" aria-selected="false">Past Rosters</button>
+      <button class="tab" data-tab="team" role="tab" aria-selected="false">Team Stats</button>
+      <button class="tab" data-tab="players" role="tab" aria-selected="false">Player Stats</button>
+      <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
+      <button class="tab" data-tab="props" role="tab" aria-selected="false">Player Props (Fun)</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Roster (current) -->
+    <section id="roster" class="panel active" role="tabpanel">
+      <div class="panel-header">
+        <h3>Current Roster</h3>
+        <div class="actions">
+          <label class="select">
+            <span>Season</span>
+            <select id="currentSeasonSelect"></select>
+          </label>
+          <button id="refreshRoster" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="rosterGrid" class="grid"></div>
+    </section>
+
+    <!-- Past Rosters -->
+    <section id="past" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Past Rosters</h3>
+        <div class="actions">
+          <label class="select">
+            <span>Season</span>
+            <select id="pastSeasonSelect"></select>
+          </label>
+          <button id="loadPastRoster" class="btn">Load</button>
+        </div>
+      </div>
+      <div id="pastRosterGrid" class="grid"></div>
+    </section>
+
+    <!-- Team Stats -->
+    <section id="team" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Team Stats</h3>
+        <div class="actions">
+          <label class="select">
+            <span>Season</span>
+            <select id="teamSeasonSelect"></select>
+          </label>
+          <button id="refreshTeamStats" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="teamStats" class="table-wrap"></div>
+    </section>
+
+    <!-- Player Stats -->
+    <section id="players" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Player Stats</h3>
+        <div class="actions">
+          <label class="select">
+            <span>Season</span>
+            <select id="playerSeasonSelect"></select>
+          </label>
+          <input id="playerSearch" class="input" type="search" placeholder="Search player..." />
+          <button id="refreshPlayerStats" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="playerStats" class="table-wrap"></div>
+    </section>
+
+    <!-- News -->
+    <section id="news" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>News</h3>
+        <div class="actions">
+          <button id="refreshNews" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="newsList" class="cards"></div>
+    </section>
+
+    <!-- Player Props -->
+    <section id="props" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Player Props (for fun)</h3>
+        <div class="actions">
+          <label class="select">
+            <span>Season</span>
+            <select id="propsSeasonSelect"></select>
+          </label>
+          <button id="recalcProps" class="btn">Recalculate Lines</button>
+        </div>
+      </div>
+      <div id="propsTable" class="table-wrap"></div>
+      <p class="disclaimer">
+        Props are for entertainment only. Lines are derived from per-game averages and are <em>not</em> betting advice.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Unofficial fan project. Florida Gators® and logos are trademarks of the University of Florida. Images remain the property of their owners.</p>
+    <p>Data: Sports-Reference.com (manual/CSV/proxy ingestion). News: official site RSS or other published sources.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
