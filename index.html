@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="stylesheet" href="./style.css?v=13"/>
+  <link rel="stylesheet" href="./style.css?v=20"/>
   <meta name="color-scheme" content="light dark">
 </head>
 <body>
@@ -52,14 +52,17 @@
         <div class="actions">
           <label class="select"><span>Season</span><select id="seasonSelect" class="input"></select></label>
           <select id="schedFilter" class="input">
-            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
+            <option value="ALL">All</option>
+            <option value="Home">Home</option>
+            <option value="Away">Away</option>
+            <option value="Neutral">Neutral</option>
           </select>
           <button id="refreshSchedule" class="btn">Refresh</button>
           <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
-      <p class="tiny muted">Click a row for venue, TV, notes, calendar, and box links.</p>
+      <p class="tiny muted">Click a row for venue, TV, calendar, and box links.</p>
     </section>
 
     <section id="roster" class="panel" role="tabpanel">
@@ -88,6 +91,17 @@
       <div id="teamStats" class="table-wrap"></div>
       <div class="subhead"><input id="playerFilter" class="input" type="search" placeholder="Filter players..."/></div>
       <div id="playerStats" class="table-wrap"></div>
+      <div class="subhead" style="margin-top:10px">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <strong>Compare players:</strong>
+            <select id="cmpA" class="input"></select>
+            <select id="cmpB" class="input"></select>
+            <button id="drawCompare" class="btn ghost">Draw</button>
+          </div>
+          <div id="compareWrap" style="margin-top:8px"></div>
+        </div>
+      </div>
     </section>
 
     <section id="analytics" class="panel" role="tabpanel">
@@ -110,7 +124,7 @@
       <div class="card" style="margin-bottom:10px">
         <div class="actions">
           <label class="select"><span>Attach to game</span><select id="ticketGame" class="input"></select></label>
-          <button id="shareSlip" class="btn ghost">Share Slip</button>
+          <button id="shareSlip" class="btn ghost" title="Copy a shareable URL with your slip">Share Slip</button>
         </div>
       </div>
       <div id="propsTable" class="table-wrap"></div>
@@ -150,7 +164,7 @@
     <section id="about" class="panel" role="tabpanel">
       <div class="panel-header"><h3>About</h3></div>
       <div class="card">
-        <p>Unofficial fan project. Live schedule, roster & stats from ESPN JSON; photos from Wikimedia/Unsplash.</p>
+        <p>Unofficial fan project. Live schedule, roster & stats from ESPN JSON; 2025 championship photos via WRUF. Not affiliated with UF.</p>
       </div>
     </section>
 
@@ -165,7 +179,7 @@
     </div>
   </div>
 
-  <!-- IMPORTANT: bump v here whenever you update app.js to defeat caching -->
-  <script src="./app.js?v=13" defer></script>
+  <!-- bump ?v when you update app.js to defeat cache -->
+  <script src="./app.js?v=20" defer></script>
 </body>
 </html>
