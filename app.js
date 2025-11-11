@@ -8,7 +8,7 @@
   "use strict";
 
   // --- boot + health probe ---
-  const BOOT_VER = "v24";
+  const BOOT_VER = "v25";
   const boot = `[BOOT] app.js ${BOOT_VER} @ ${new Date().toLocaleString()}`;
   (function logBoot(){
     const d = document.querySelector("#diag");
@@ -34,6 +34,7 @@
   const j  = (r) => r.json();
 
   function espnTeam(season) {
+    // enable param helps, but shapes vary; we normalize below
     return fetch(`${ESPN_BASE}/teams/${TEAM_ID}?enable=roster,statistics,record&season=${season}`).then(ok).then(j);
   }
   function espnRoster(season) {
@@ -70,6 +71,52 @@
     }
     if (athletes && Array.isArray(athletes.items)) return athletes.items;
     return [];
+  }
+
+  // Extract team stats across ESPN's shifting field names; returns a normalized map
+  function extractTeamStats(teamData) {
+    const cats =
+      teamData?.team?.statistics?.splits?.categories ||
+      teamData?.team?.team?.statistics?.splits?.categories ||
+      teamData?.statistics?.splits?.categories ||
+      [];
+    const out = {};
+    const put = (key, val) => { if (typeof val === "number" && !Number.isNaN(val)) out[key] = val; };
+
+    const allStats = cats.flatMap(c => (c?.stats || []));
+    for (const s of allStats) {
+      const name = (s.name || s.displayName || s.shortDisplayName || s.abbreviation || "").toUpperCase();
+      const val  = Number(s.value);
+      if (name === "POINTSPERGAME" || name === "PPG") put("pointsPerGame", val);
+      else if (name === "REBOUNDSPERGAME" || name === "RPG") put("reboundsPerGame", val);
+      else if (name === "ASSISTSPERGAME" || name === "APG") put("assistsPerGame", val);
+      else if (name === "STEALSPERGAME" || name === "SPG") put("stealsPerGame", val);
+      else if (name === "BLOCKSPERGAME" || name === "BPG") put("blocksPerGame", val);
+      else if (name === "FIELDGOALPCT" || name === "FG%" || name === "FGPCT") put("fieldGoalPct", val);
+      else if (name === "THREEPOINTFIELDGOALPCT" || name === "3P%" || name === "3PTPCT" || name==="THREEPOINTPCT") put("threePointFieldGoalPct", val);
+      else if (name === "FREETHROWPCT" || name === "FT%" || name==="FTPCT") put("freeThrowPct", val);
+    }
+    return out;
+  }
+
+  // Fallback: compute "team" per-game from player per-game splits when team block missing
+  function computeTeamFromPlayers(players) {
+    const sum = (k) => players.reduce((a,b)=>a + (Number(b[k])||0), 0);
+    const avgPct = (k) => {
+      const vals = players.map(p => Number(p[k])).filter(v => Number.isFinite(v));
+      if (!vals.length) return 0;
+      return vals.reduce((a,b)=>a+b,0) / vals.length;
+    };
+    return {
+      pointsPerGame: sum("ppg"),
+      reboundsPerGame: sum("rpg"),
+      assistsPerGame: sum("apg"),
+      stealsPerGame: sum("spg"),
+      blocksPerGame: sum("bpg"),
+      fieldGoalPct: avgPct("fgPct"),
+      threePointFieldGoalPct: avgPct("threePct"),
+      freeThrowPct: avgPct("ftPct"),
+    };
   }
 
   /* ---------- Theme ---------- */
@@ -133,7 +180,6 @@
         espnRoster(season).catch(() => ({}))
       ]);
 
-      // quick shape peek for diag
       _health("raw-shapes", {
         roster_type: Array.isArray(rosterData?.athletes) ? (Array.isArray(rosterData.athletes[0]?.items) ? "groups" : "flat") : typeof rosterData?.athletes,
         team_has_athletes: !!teamData?.team?.athletes
@@ -151,19 +197,12 @@
         hometown: a.homeTown || a.hometown || ""
       }));
 
-      // ---- TEAM STATS ----
-      const catBlocks = teamData?.team?.statistics?.splits?.categories || teamData?.team?.team?.statistics?.splits?.categories || [];
-      const teamStats = catBlocks.reduce((acc, c) => {
-        (c.stats || []).forEach(s => (acc[s.name] = +s.value || 0));
-        return acc;
-      }, {});
-      STATE.stats.team = teamStats;
+      // ---- TEAM STATS (robust extractor) ----
+      let teamStats = extractTeamStats(teamData);
 
       // ---- PLAYER STATS ----
       let players = [];
-      // team endpoint can be groups or flat; normalize it too
       const teamAthletes = normalizeAthletes(teamData?.team?.athletes);
-
       if (teamAthletes.length) {
         players = teamAthletes.map(a => {
           const pcats = a?.statistics?.splits?.categories || [];
@@ -219,7 +258,17 @@
 
       STATE.stats.players = players;
 
-      _health("roster/stats", { roster: STATE.roster.length, players: (STATE.stats.players||[]).length, teamKeys: Object.keys(STATE.stats.team||{}).length });
+      // Compute team block if extractor found nothing
+      if (!teamStats || !Object.keys(teamStats).length) {
+        teamStats = computeTeamFromPlayers(players);
+      }
+      STATE.stats.team = teamStats;
+
+      _health("roster/stats", {
+        roster: STATE.roster.length,
+        players: (STATE.stats.players||[]).length,
+        teamKeys: Object.keys(STATE.stats.team||{}).length
+      });
 
       renderRoster(); renderTeamStats(); renderPlayerStats(); fillCompare(); renderPropsTable();
     } catch (e) {
@@ -417,7 +466,7 @@
     const a=STATE.stats.players.find(p=>p.name===($("#cmpA")?.value||""));
     const b=STATE.stats.players.find(p=>p.name===($("#cmpB")?.value||""));
     if(!a||!b) return;
-    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rbg:15,apg:8,spg:3,bpg:3,tpg:5};
+    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rpg:15,apg:8,spg:3,bpg:3,tpg:5};
     const w=800,h=320,pad=40,col=(w-2*pad)/metrics.length; const bar=(val,max)=>Math.max(2,(val/(max||1))*(h-2*pad));
     const svg=[`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
     metrics.forEach((m,i)=>{ const x=pad+i*col+col/2;
