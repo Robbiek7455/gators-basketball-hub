@@ -1,20 +1,21 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="stylesheet" href="./style.css?v=10"/>
+  <link rel="stylesheet" href="./style.css?v=12" />
   <meta name="color-scheme" content="light dark">
 </head>
 <body>
   <header class="masthead">
     <div class="masthead-inner">
-      <img class="masthead-logo" alt="Florida Gators" src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg"/>
+      <img class="masthead-logo" alt="Florida Gators logo"
+        src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
       <div>
         <h1>Florida Gators</h1>
-        <h2>Men’s Basketball Fan Hub</h2>
+        <h2>Men’s Basketball (Fan Hub)</h2>
       </div>
     </div>
   </header>
@@ -31,7 +32,6 @@
         </div>
       </div>
 
-      <!-- NAV -->
       <nav class="tabs" role="tablist" aria-label="Main sections">
         <a class="tab" data-tab="schedule" href="#/schedule">Schedule</a>
         <a class="tab" data-tab="roster"   href="#/roster">Roster</a>
@@ -56,28 +56,25 @@
             <select id="seasonSelect" class="input"></select>
           </label>
           <select id="schedFilter" class="input">
-            <option value="ALL">All</option>
-            <option value="Home">Home</option>
-            <option value="Away">Away</option>
-            <option value="Neutral">Neutral</option>
+            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
           </select>
           <button id="refreshSchedule" class="btn">Refresh</button>
           <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
-      <p class="tiny muted">Click a row for venue, TV, notes, calendar, and box link.</p>
+      <p class="tiny muted">Click a row for venue, TV, notes, calendar, and box links.</p>
     </section>
 
     <!-- ROSTER -->
     <section id="roster" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Roster (live from Sports-Reference)</h3>
+        <h3>Roster (live)</h3>
         <div class="actions">
           <label class="select"><span>Season</span>
             <select id="rosterSeason" class="input"></select>
           </label>
-          <input id="rosterFilter" class="input" placeholder="Filter by name…"/>
+          <input id="rosterFilter" class="input" placeholder="Filter by name…" />
           <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
           <button id="refreshRoster" class="btn">Refresh</button>
         </div>
@@ -99,7 +96,7 @@
         </div>
       </div>
       <div id="teamStats" class="table-wrap"></div>
-      <div class="subhead"><input id="playerFilter" class="input" type="search" placeholder="Filter players..."/></div>
+      <div class="subhead"><input id="playerFilter" class="input" type="search" placeholder="Filter players..." /></div>
       <div id="playerStats" class="table-wrap"></div>
     </section>
 
@@ -119,7 +116,7 @@
       <div class="panel-header">
         <h3>Player Props (For Fun)</h3>
         <div class="actions">
-          <input id="usernameInput" class="input" placeholder="Username (leaderboard)"/>
+          <input id="usernameInput" class="input" placeholder="Username (leaderboard)" />
           <button id="startBankroll" class="btn">Set $1,000 Bankroll</button>
           <span id="bankroll" class="badge">$0</span>
           <button id="resetBankroll" class="btn ghost">Reset</button>
@@ -136,7 +133,7 @@
         <h4>Bet Slip</h4>
         <div id="betList"></div>
         <div class="bet-actions">
-          <input id="wagerInput" type="number" min="1" class="input" placeholder="Wager $"/>
+          <input id="wagerInput" type="number" min="1" class="input" placeholder="Wager $" />
           <button id="placeBets" class="btn">Place Bets</button>
           <button id="clearBets" class="btn ghost">Clear</button>
         </div>
@@ -174,7 +171,7 @@
     <section id="about" class="panel" role="tabpanel">
       <div class="panel-header"><h3>About</h3></div>
       <div class="card">
-        <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
+        <p>Unofficial fan project. Live schedule (ESPN JSON), roster (ESPN), player stats (Sports-Reference). Images belong to their owners.</p>
       </div>
     </section>
 
@@ -182,7 +179,6 @@
     <section id="diag" class="panel" role="tabpanel" style="display:none"></section>
   </main>
 
-  <!-- Modal -->
   <div id="scoutModal" class="modal hidden" aria-hidden="true">
     <div class="modal-bg"></div>
     <div class="modal-card">
@@ -193,6 +189,6 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script src="./app.js?v=10" defer></script>
+  <script src="./app.js?v=12" defer></script>
 </body>
 </html>
