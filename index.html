@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <!-- cache-bust CSS so GH Pages pulls the new file -->
-  <link rel="stylesheet" href="./style.css?v=4" />
+  <link rel="stylesheet" href="./style.css?v=5" />
   <meta name="color-scheme" content="light dark">
 </head>
 <body>
-  <!-- MASTHEAD -->
   <header class="masthead">
     <div class="masthead-inner">
       <img class="masthead-logo" alt="Florida Gators logo"
@@ -22,9 +20,8 @@
     </div>
   </header>
 
-  <!-- HERO / CAROUSEL -->
+  <!-- HERO -->
   <section class="hero">
-    <!-- IMPORTANT: pointer-events:none so it never blocks clicks on tabs -->
     <div class="hero-images" id="heroImages" aria-hidden="true"></div>
     <div class="hero-overlay">
       <div class="hero-top">
@@ -38,6 +35,7 @@
         <a class="tab" data-tab="schedule" href="#/schedule">Schedule</a>
         <a class="tab" data-tab="roster"   href="#/roster">Roster</a>
         <a class="tab" data-tab="stats"    href="#/stats">Stats</a>
+        <a class="tab" data-tab="analytics"href="#/analytics">Analytics</a>
         <a class="tab" data-tab="props"    href="#/props">Props</a>
         <a class="tab" data-tab="compare"  href="#/compare">Compare</a>
         <a class="tab" data-tab="news"     href="#/news">News</a>
@@ -71,7 +69,7 @@
     <!-- ROSTER -->
     <section id="roster" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Roster</h3>
+        <h3>Roster (live)</h3>
         <div class="actions">
           <label class="select"><span>Season</span>
             <select id="rosterSeason" class="input"></select>
@@ -82,12 +80,13 @@
         </div>
       </div>
       <div id="rosterGrid" class="grid"></div>
+      <div id="rosterEmpty" class="tiny muted" style="display:none">No roster data available right now.</div>
     </section>
 
     <!-- STATS -->
     <section id="stats" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Team & Player Stats</h3>
+        <h3>Team & Player Stats (auto)</h3>
         <div class="actions">
           <label class="select"><span>Season</span>
             <select id="statsSeason" class="input"></select>
@@ -99,6 +98,19 @@
       <div id="teamStats" class="table-wrap"></div>
       <div class="subhead"><input id="playerFilter" class="input" type="search" placeholder="Filter players..." /></div>
       <div id="playerStats" class="table-wrap"></div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section id="analytics" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Game Analytics</h3>
+        <div class="actions">
+          <button id="refreshAnalytics" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="analyticsWrap" class="table-wrap"></div>
+      <div id="analyticsTrend" class="card" style="padding:0;margin-top:12px"></div>
+      <p class="tiny muted">ORtg = Points / Possessions × 100. Possessions ≈ FGA + 0.475×FTA − ORB + TO.</p>
     </section>
 
     <!-- PROPS -->
@@ -177,15 +189,13 @@
     <section id="about" class="panel" role="tabpanel">
       <div class="panel-header"><h3>About</h3></div>
       <div class="card">
-        <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
+        <p>Unofficial fan project. Live schedule, roster & stats from ESPN JSON; historical links to Sports-Reference.</p>
       </div>
     </section>
 
-    <!-- DIAGNOSTICS (open by visiting #/diag) -->
     <section id="diag" class="panel" role="tabpanel" style="display:none"></section>
   </main>
 
-  <!-- Modal -->
   <div id="scoutModal" class="modal hidden" aria-hidden="true">
     <div class="modal-bg"></div>
     <div class="modal-card">
@@ -195,8 +205,6 @@
   </div>
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-
-  <!-- cache-bust JS so GH Pages pulls the new file -->
-  <script src="./app.js?v=4" defer></script>
+  <script src="./app.js?v=5" defer></script>
 </body>
 </html>
