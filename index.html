@@ -23,17 +23,21 @@
         </div>
       </div>
       <div class="hero-bottom">
-        <div id="nextGame" class="countdown">Next game: …</div>
+        <div class="hero-controls">
+          <button id="heroPrev" class="pill ghost" aria-label="Prev">‹</button>
+          <div id="nextGame" class="countdown">Next game: …</div>
+          <button id="heroNext" class="pill ghost" aria-label="Next">›</button>
+        </div>
         <nav class="tabs" role="tablist" aria-label="Main sections">
-          <button class="tab active" data-tab="schedule" aria-selected="true">Schedule</button>
-          <button class="tab" data-tab="roster" aria-selected="false">Roster</button>
-          <button class="tab" data-tab="stats" aria-selected="false">Stats</button>
-          <button class="tab" data-tab="props" aria-selected="false">Props</button>
-          <button class="tab" data-tab="compare" aria-selected="false">Compare</button>
-          <button class="tab" data-tab="news" aria-selected="false">News</button>
-          <button class="tab" data-tab="photos" aria-selected="false">Photos</button>
-          <button class="tab" data-tab="about" aria-selected="false">About</button>
-          <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
+          <a class="tab" data-tab="schedule" href="#/schedule">Schedule</a>
+          <a class="tab" data-tab="roster"   href="#/roster">Roster</a>
+          <a class="tab" data-tab="stats"    href="#/stats">Stats</a>
+          <a class="tab" data-tab="props"    href="#/props">Props</a>
+          <a class="tab" data-tab="compare"  href="#/compare">Compare</a>
+          <a class="tab" data-tab="news"     href="#/news">News</a>
+          <a class="tab" data-tab="photos"   href="#/photos">Photos</a>
+          <a class="tab" data-tab="about"    href="#/about">About</a>
+          <button id="themeToggle" class="tab" aria-label="Toggle theme" type="button">🌙</button>
         </nav>
       </div>
     </div>
@@ -41,17 +45,21 @@
 
   <main class="container">
     <!-- SCHEDULE -->
-    <section id="schedule" class="panel active" role="tabpanel">
+    <section id="schedule" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>2025–26 Schedule (auto)</h3>
         <div class="actions">
           <select id="schedFilter" class="input">
             <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
           </select>
+          <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
           <button id="refreshSchedule" class="btn">Refresh</button>
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
+      <div class="actions mt">
+        <button id="enableGameReminder" class="btn ghost">Enable 30-min Game Reminder</button>
+      </div>
     </section>
 
     <!-- ROSTER -->
@@ -72,8 +80,8 @@
       <div class="panel-header">
         <h3>Team & Player Stats (auto)</h3>
         <div class="actions">
-          <button id="refreshStats" class="btn">Refresh</button>
           <button id="exportPlayersCsv" class="btn ghost">Export CSV</button>
+          <button id="refreshStats" class="btn">Refresh</button>
         </div>
       </div>
       <div id="teamStats" class="table-wrap"></div>
@@ -177,7 +185,7 @@
     </section>
   </main>
 
-  <!-- Scouting / QR / Generic modal -->
+  <!-- Generic modal (player card / scout / QR) -->
   <div id="scoutModal" class="modal hidden" aria-hidden="true">
     <div class="modal-bg"></div>
     <div class="modal-card">
