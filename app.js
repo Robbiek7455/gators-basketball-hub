@@ -8,7 +8,7 @@
   "use strict";
 
   // --- boot + health probe ---
-  const BOOT_VER = "v23";
+  const BOOT_VER = "v24";
   const boot = `[BOOT] app.js ${BOOT_VER} @ ${new Date().toLocaleString()}`;
   (function logBoot(){
     const d = document.querySelector("#diag");
@@ -59,6 +59,18 @@
   const toCSV = (rows) => rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\r\n");
   function toast(msg){ const t=$("#toast"); if(!t) return; t.textContent=msg; t.classList.remove("hidden"); setTimeout(()=>t.classList.add("hidden"),1600); }
   function diag(msg){ const d=$("#diag"); if(!d) return; d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">${esc(msg)}</pre></div>`; }
+
+  // Normalize ESPN "athletes" which can be [ groups with items ] OR [ flat array ] OR single group
+  function normalizeAthletes(athletes) {
+    if (!athletes) return [];
+    if (Array.isArray(athletes)) {
+      const first = athletes[0];
+      const looksGrouped = first && typeof first === "object" && Array.isArray(first.items);
+      return looksGrouped ? athletes.flatMap(g => g.items || []) : athletes;
+    }
+    if (athletes && Array.isArray(athletes.items)) return athletes.items;
+    return [];
+  }
 
   /* ---------- Theme ---------- */
   function applyTheme(){
@@ -121,16 +133,22 @@
         espnRoster(season).catch(() => ({}))
       ]);
 
-      // ---- ROSTER (reliable) ----
-      const rosterGroups = rosterData?.athletes || [];
-      const flatRoster = rosterGroups.flatMap(g => g?.items || []);
+      // quick shape peek for diag
+      _health("raw-shapes", {
+        roster_type: Array.isArray(rosterData?.athletes) ? (Array.isArray(rosterData.athletes[0]?.items) ? "groups" : "flat") : typeof rosterData?.athletes,
+        team_has_athletes: !!teamData?.team?.athletes
+      });
+
+      // ---- ROSTER (normalized) ----
+      const flatRoster = normalizeAthletes(rosterData?.athletes);
       STATE.roster = flatRoster.map(a => ({
         id: a.id,
-        name: a.displayName || a.fullName || "",
-        pos: a.position?.abbreviation || a.position?.displayName || "",
-        number: a.jersey || "",
-        headshot: a.headshot?.href || `https://source.boringavatars.com/beam/96/${encodeURIComponent(a.displayName || a.fullName || a.id)}`,
-        hometown: a.homeTown || ""
+        name: a.displayName || a.fullName || a.name || "",
+        pos: a.position?.abbreviation || a.position?.displayName || a.position || "",
+        number: a.jersey || a.uniform || "",
+        headshot: (a.headshot && (a.headshot.href || a.headshot.url)) ||
+                  `https://source.boringavatars.com/beam/96/${encodeURIComponent(a.displayName || a.fullName || a.id)}`,
+        hometown: a.homeTown || a.hometown || ""
       }));
 
       // ---- TEAM STATS ----
@@ -143,21 +161,34 @@
 
       // ---- PLAYER STATS ----
       let players = [];
-      const teamAthletes = (teamData?.team?.athletes || []).flatMap(g => g.items || []);
+      // team endpoint can be groups or flat; normalize it too
+      const teamAthletes = normalizeAthletes(teamData?.team?.athletes);
+
       if (teamAthletes.length) {
         players = teamAthletes.map(a => {
           const pcats = a?.statistics?.splits?.categories || [];
           const m = pcats.reduce((acc, c) => { (c.stats || []).forEach(s => (acc[s.name] = +s.value || 0)); return acc; }, {});
           return {
-            id: a.id, name: a.displayName, link: `https://www.espn.com/mens-college-basketball/player/_/id/${a.id}`,
-            gp: m.gamesPlayed ?? null, mpg: m.minutesPerGame ?? null, ppg: m.pointsPerGame ?? null,
-            rpg: m.reboundsPerGame ?? null, apg: m.assistsPerGame ?? null, spg: m.stealsPerGame ?? null,
-            bpg: m.blocksPerGame ?? null, tpg: m.turnoversPerGame ?? null,
-            fgPct: m.fieldGoalPct ?? 0, threePct: m.threePointFieldGoalPct ?? 0, ftPct: m.freeThrowPct ?? 0,
-            headshot: a.headshot?.href || ""
+            id: a.id,
+            name: a.displayName || a.fullName || a.name || "",
+            link: `https://www.espn.com/mens-college-basketball/player/_/id/${a.id}`,
+            gp: m.gamesPlayed ?? null,
+            mpg: m.minutesPerGame ?? null,
+            ppg: m.pointsPerGame ?? null,
+            rpg: m.reboundsPerGame ?? null,
+            apg: m.assistsPerGame ?? null,
+            spg: m.stealsPerGame ?? null,
+            bpg: m.blocksPerGame ?? null,
+            tpg: m.turnoversPerGame ?? null,
+            fgPct: m.fieldGoalPct ?? 0,
+            threePct: m.threePointFieldGoalPct ?? 0,
+            ftPct: m.freeThrowPct ?? 0,
+            headshot: (a.headshot && (a.headshot.href || a.headshot.url)) || ""
           };
         });
       }
+
+      // per-athlete fallback if team endpoint didn't include splits
       if (!players.length && STATE.roster.length) {
         const ids = STATE.roster.map(r => r.id);
         players = await (async function fetchAthleteStatsBatch(ids, batchSize = 5) {
@@ -185,6 +216,7 @@
           return out;
         })(ids);
       }
+
       STATE.stats.players = players;
 
       _health("roster/stats", { roster: STATE.roster.length, players: (STATE.stats.players||[]).length, teamKeys: Object.keys(STATE.stats.team||{}).length });
@@ -385,7 +417,7 @@
     const a=STATE.stats.players.find(p=>p.name===($("#cmpA")?.value||""));
     const b=STATE.stats.players.find(p=>p.name===($("#cmpB")?.value||""));
     if(!a||!b) return;
-    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rpg:15,apg:8,spg:3,bpg:3,tpg:5};
+    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rbg:15,apg:8,spg:3,bpg:3,tpg:5};
     const w=800,h=320,pad=40,col=(w-2*pad)/metrics.length; const bar=(val,max)=>Math.max(2,(val/(max||1))*(h-2*pad));
     const svg=[`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
     metrics.forEach((m,i)=>{ const x=pad+i*col+col/2;
