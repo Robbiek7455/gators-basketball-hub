@@ -4,43 +4,60 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
-  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, props (mock), scouting, and more." />
+  <meta name="description" content="UF Gators men's basketball: automatic schedule, stats, roster photos, news, props (mock), and more." />
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="site-header">
-    <div class="brand">
-      <img class="logo" alt="Florida Gators logo"
-           src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
-      <div class="brand-text">
-        <h1>Florida Gators</h1>
-        <h2>Men’s Basketball Hub (Fan-made)</h2>
+  <!-- HERO / SHUFFLE BANNER -->
+  <header class="hero">
+    <div class="hero-images" id="heroImages" aria-hidden="true"></div>
+    <div class="hero-overlay">
+      <div class="brand">
+        <img class="logo" alt="Florida Gators logo"
+             src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
+        <div class="brand-text">
+          <h1>Florida Gators</h1>
+          <h2>Men’s Basketball Hub (Fan-made)</h2>
+        </div>
       </div>
-    </div>
-
-    <div class="topbar">
-      <div id="nextGame" class="countdown">Next game: …</div>
-      <nav class="tabs" role="tablist" aria-label="Main sections">
-        <button class="tab active" data-tab="roster" role="tab" aria-selected="true">Roster</button>
-        <button class="tab" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
-        <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
-        <button class="tab" data-tab="props" role="tab" aria-selected="false">Props (Mock)</button>
-        <button class="tab" data-tab="compare" role="tab" aria-selected="false">Compare</button>
-        <button class="tab" data-tab="standings" role="tab" aria-selected="false">Standings</button>
-        <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
-        <button class="tab" data-tab="photos" role="tab" aria-selected="false">Photos</button>
-        <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
-      </nav>
+      <div class="hero-bottom">
+        <div id="nextGame" class="countdown">Next game: …</div>
+        <nav class="tabs" role="tablist" aria-label="Main sections">
+          <button class="tab active" data-tab="schedule" aria-selected="true">Schedule</button>
+          <button class="tab" data-tab="roster" aria-selected="false">Roster</button>
+          <button class="tab" data-tab="stats" aria-selected="false">Stats</button>
+          <button class="tab" data-tab="props" aria-selected="false">Props</button>
+          <button class="tab" data-tab="compare" aria-selected="false">Compare</button>
+          <button class="tab" data-tab="news" aria-selected="false">News</button>
+          <button class="tab" data-tab="photos" aria-selected="false">Photos</button>
+          <button class="tab" data-tab="about" aria-selected="false">About</button>
+          <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
+        </nav>
+      </div>
     </div>
   </header>
 
   <main class="container">
-    <!-- ROSTER -->
-    <section id="roster" class="panel active" role="tabpanel">
+    <!-- SCHEDULE -->
+    <section id="schedule" class="panel active" role="tabpanel">
       <div class="panel-header">
-        <h3>2025–26 Roster</h3>
+        <h3>2025–26 Schedule (auto)</h3>
+        <div class="actions">
+          <select id="schedFilter" class="input">
+            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
+          </select>
+          <button id="refreshSchedule" class="btn">Refresh</button>
+        </div>
+      </div>
+      <div id="scheduleWrap" class="table-wrap"></div>
+    </section>
+
+    <!-- ROSTER -->
+    <section id="roster" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Roster (auto headshots)</h3>
         <div class="actions">
           <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
           <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
@@ -50,36 +67,17 @@
       <div id="rosterGrid" class="grid"></div>
     </section>
 
-    <!-- SCHEDULE -->
-    <section id="schedule" class="panel" role="tabpanel">
-      <div class="panel-header">
-        <h3>2025–26 Schedule (ET)</h3>
-        <div class="actions">
-          <select id="schedFilter" class="input">
-            <option value="ALL">All</option>
-            <option value="Home">Home</option>
-            <option value="Away">Away</option>
-            <option value="Neutral">Neutral</option>
-          </select>
-          <button id="refreshSchedule" class="btn">Refresh</button>
-        </div>
-      </div>
-      <div id="scheduleWrap" class="table-wrap"></div>
-    </section>
-
     <!-- STATS -->
     <section id="stats" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Team & Player Stats</h3>
+        <h3>Team & Player Stats (auto)</h3>
         <div class="actions">
           <button id="refreshStats" class="btn">Refresh</button>
           <button id="exportPlayersCsv" class="btn ghost">Export CSV</button>
         </div>
       </div>
       <div id="teamStats" class="table-wrap"></div>
-      <div class="subhead">
-        <input id="playerFilter" class="input" type="search" placeholder="Filter players..." />
-      </div>
+      <div class="subhead"><input id="playerFilter" class="input" type="search" placeholder="Filter players..." /></div>
       <div id="playerStats" class="table-wrap"></div>
     </section>
 
@@ -97,10 +95,7 @@
 
       <div class="card" style="margin-bottom:10px">
         <div class="actions">
-          <label class="select">
-            <span>Attach to game</span>
-            <select id="ticketGame" class="input"></select>
-          </label>
+          <label class="select"><span>Attach to game</span><select id="ticketGame" class="input"></select></label>
           <button id="shareSlip" class="btn ghost">Share Slip</button>
           <button id="qrSlip" class="btn ghost">QR Slip</button>
           <button id="imgSlip" class="btn ghost">Copy Slip as Image</button>
@@ -120,8 +115,7 @@
         <div class="bet-actions">
           <button id="gradeBets" class="btn">Grade Bets</button>
           <button id="exportLeaderboard" class="btn ghost">Export Leaderboard</button>
-          <label class="btn ghost" style="cursor:pointer">
-            Import Leaderboard
+          <label class="btn ghost" style="cursor:pointer">Import Leaderboard
             <input id="importLeaderboard" type="file" accept="application/json" style="display:none">
           </label>
         </div>
@@ -133,8 +127,7 @@
       <h4 class="mt">Bet History</h4>
       <div class="actions" style="margin-bottom:8px;">
         <button id="exportHistory" class="btn ghost">Export History</button>
-        <label class="btn ghost" style="cursor:pointer">
-          Import History
+        <label class="btn ghost" style="cursor:pointer">Import History
           <input id="importHistory" type="file" accept="application/json" style="display:none">
         </label>
         <button id="clearHistory" class="btn ghost">Clear History</button>
@@ -157,15 +150,6 @@
       <div id="compareWrap" class="card" style="padding:0"></div>
     </section>
 
-    <!-- STANDINGS -->
-    <section id="standings" class="panel" role="tabpanel">
-      <div class="panel-header">
-        <h3>SEC Quick Standings</h3>
-        <div class="actions"><button id="refreshStandings" class="btn">Refresh</button></div>
-      </div>
-      <div id="standingsWrap" class="table-wrap"></div>
-    </section>
-
     <!-- NEWS -->
     <section id="news" class="panel" role="tabpanel">
       <div class="panel-header">
@@ -183,13 +167,17 @@
       </div>
       <div id="photoGrid" class="grid photos"></div>
     </section>
+
+    <!-- ABOUT -->
+    <section id="about" class="panel" role="tabpanel">
+      <div class="panel-header"><h3>About</h3></div>
+      <div class="card">
+        <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
+      </div>
+    </section>
   </main>
 
-  <footer class="site-footer">
-    <p>Unofficial fan project. Florida Gators® and marks belong to the University of Florida. Images remain the property of their owners.</p>
-  </footer>
-
-  <!-- Opponent scouting modal -->
+  <!-- Scouting / QR / Generic modal -->
   <div id="scoutModal" class="modal hidden" aria-hidden="true">
     <div class="modal-bg"></div>
     <div class="modal-card">
