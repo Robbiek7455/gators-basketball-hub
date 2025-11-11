@@ -4,8 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
-  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, and for-fun props with a mock-betting leaderboard." />
+  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, props (mock), and more." />
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -19,15 +20,20 @@
       </div>
     </div>
 
-    <nav class="tabs" role="tablist" aria-label="Main sections">
-      <button class="tab active" data-tab="roster" role="tab" aria-selected="true">Roster</button>
-      <button class="tab" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
-      <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
-      <button class="tab" data-tab="props" role="tab" aria-selected="false">Props (Mock)</button>
-      <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
-      <button class="tab" data-tab="photos" role="tab" aria-selected="false">Photos</button>
-      <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
-    </nav>
+    <div class="topbar">
+      <div id="nextGame" class="countdown">Next game: …</div>
+      <nav class="tabs" role="tablist" aria-label="Main sections">
+        <button class="tab active" data-tab="roster" role="tab" aria-selected="true">Roster</button>
+        <button class="tab" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+        <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
+        <button class="tab" data-tab="props" role="tab" aria-selected="false">Props (Mock)</button>
+        <button class="tab" data-tab="compare" role="tab" aria-selected="false">Compare</button>
+        <button class="tab" data-tab="standings" role="tab" aria-selected="false">Standings</button>
+        <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
+        <button class="tab" data-tab="photos" role="tab" aria-selected="false">Photos</button>
+        <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
+      </nav>
+    </div>
   </header>
 
   <main class="container">
@@ -37,6 +43,7 @@
         <h3>2025–26 Roster</h3>
         <div class="actions">
           <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
+          <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
           <button id="refreshRoster" class="btn">Refresh</button>
         </div>
       </div>
@@ -87,9 +94,7 @@
           <button id="resetBankroll" class="btn ghost">Reset</button>
         </div>
       </div>
-
       <div id="propsTable" class="table-wrap"></div>
-
       <div class="bet-slip">
         <h4>Bet Slip</h4>
         <div id="betList"></div>
@@ -107,10 +112,33 @@
           </label>
         </div>
       </div>
-
       <h4 class="mt">Leaderboard</h4>
       <div id="leaderboard" class="table-wrap"></div>
       <p class="disclaimer">For entertainment only. No real money. Lines come from per-game averages (rounded to .5).</p>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="compare" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Compare Players</h3>
+        <div class="actions">
+          <select id="cmpA" class="input"></select>
+          <select id="cmpB" class="input"></select>
+          <button id="drawCompare" class="btn">Compare</button>
+        </div>
+      </div>
+      <div id="compareWrap" class="card" style="padding:0">
+        <!-- SVG chart injected here -->
+      </div>
+    </section>
+
+    <!-- STANDINGS -->
+    <section id="standings" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>SEC Quick Standings</h3>
+        <div class="actions"><button id="refreshStandings" class="btn">Refresh</button></div>
+      </div>
+      <div id="standingsWrap" class="table-wrap"></div>
     </section>
 
     <!-- NEWS -->
