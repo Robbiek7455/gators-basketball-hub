@@ -68,9 +68,9 @@ html,body{margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helveti
 .table-wrap{overflow:auto;border:1px solid #eef0f4;border-radius:12px;background:#fff}
 :root.dark .table-wrap{border-color:#1f2a45;background:#0f1320}
 table{border-collapse:collapse;width:100%}
-th,td{padding:10px;border-bottom:1px solid #f0f2f7;text-align:left;font-size:14px}
+th,td{padding:10px;border-bottom:1px solid #f0f2f7;text-align:left;font-size:14px;vertical-align:middle}
 :root.dark th,:root.dark td{border-bottom-color:#1f2a45}
-th{background:#f8f9fd;position:sticky;top:0;cursor:pointer}
+th{background:#f8f9fd;position:sticky;top:0}
 :root.dark th{background:#0b0e14}
 tr:hover td{background:#fcfdff}
 :root.dark tr:hover td{background:#101525}
@@ -94,3 +94,17 @@ tr:hover td{background:#fcfdff}
 .bet-slip{margin-top:14px;border:1px dashed #e6e8ef;border-radius:12px;padding:12px;background:#fff}
 :root.dark .bet-slip{background:#0f1320;border-color:#1f2a45}
 .bet-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* Modal & icons */
+.modal.hidden{display:none}
+.modal{position:fixed;inset:0;z-index:50}
+.modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.modal-card{position:relative;max-width:680px;margin:10vh auto;background:var(--card);border:1px solid #e6e8ef;border-radius:16px;box-shadow:var(--shadow);padding:16px}
+:root.dark .modal-card{border-color:#1f2a45}
+.boxlink{display:inline-flex;align-items:center;gap:6px}
+.boxlink svg{width:16px;height:16px;display:inline-block}
+.opplink{cursor:pointer;color:var(--gator-blue);text-decoration:underline}
+
+/* Toasts */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 14px;border-radius:12px;box-shadow:var(--shadow)}
+.toast.hidden{display:none}
