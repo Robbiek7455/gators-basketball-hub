@@ -1,19 +1,21 @@
 /* ===============================
-   GATORS HUB — Robust Auto Data
-   - Fix SR "commented tables"
-   - Rich schedule details + expand rows
-   - Season switchers (schedule/roster/stats)
-   - UF look & stable banner
+   GATORS HUB — CORS-SAFE + FALLBACKS
+   - Uses r.jina.ai (read-only mirror) to bypass CORS reliably
+   - Handles Sports-Reference “commented tables”
+   - Always shows usable UI via local fallbacks if a fetch fails
    =============================== */
 
 const REFRESH_MS = 10 * 60 * 1000;
-const ALO = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+const CURRENT_SEASON = 2026;
+const SEASONS = [2026, 2025, 2024, 2023];
 
-/* ---------- Seasons (you can add more years here) ---------- */
-const CURRENT_SEASON = 2026; // 2025-26 season lives at /men/2026.html on SR
-const SEASONS = [2026, 2025, 2024, 2023]; // add older if you want
+/* Build a CORS-safe mirror URL:
+   r.jina.ai returns the page HTML with permissive CORS.
+   Example: JINA('https://www.sports-reference.com/x') =>
+            https://r.jina.ai/http://www.sports-reference.com/x
+*/
+const JINA = (url) => `https://r.jina.ai/http://${url.replace(/^https?:\/\//,'')}`;
 
-/* ---------- Source URL builders ---------- */
 const SR = {
   schedule: (yr) => `https://www.sports-reference.com/cbb/schools/florida/men/${yr}-schedule.html`,
   teamPage: (yr) => `https://www.sports-reference.com/cbb/schools/florida/men/${yr}.html`
@@ -24,21 +26,22 @@ const UF = {
   rss:      'https://floridagators.com/rss.aspx?path=mbball'
 };
 
-/* ---------- tiny DOM helpers ---------- */
+/* Helpers */
 const $  = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
 const esc = (s)=> (s||"").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 const fmt = (n)=> (n===0||n)?Number(n).toFixed(1):'—';
 const pct = (p)=> (p===0||p)?(p>1?(p/100).toFixed(3):Number(p).toFixed(3)):'—';
 const pad2=(n)=>String(n).padStart(2,'0');
-function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1800); }
-function toCSV(rows){ return rows.map(r=> r.map(v=> `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n'); }
+const toCSV = (rows)=> rows.map(r=> r.map(v=> `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1600); }
+function diag(msg){ const d=$('#diag'); if(!d) return; d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">${esc(msg)}</pre></div>`; }
 
-/* ---------- theme ---------- */
+/* Theme */
 function applyTheme(){
   const saved = localStorage.getItem('ghub_theme') || 'light';
   document.documentElement.classList.toggle('dark', saved==='dark');
-  const tgl = $('#themeToggle'); if (tgl) tgl.textContent = saved==='dark' ? '☀️' : '🌙';
+  $('#themeToggle').textContent = saved==='dark' ? '☀️' : '🌙';
 }
 $('#themeToggle')?.addEventListener('click', ()=>{
   const now = (localStorage.getItem('ghub_theme')||'light')==='light'?'dark':'light';
@@ -46,17 +49,12 @@ $('#themeToggle')?.addEventListener('click', ()=>{
 });
 applyTheme();
 
-/* ---------- routing & banner ---------- */
-function showTab(tab){
-  $$('.tab').forEach(a=> a.classList.toggle('active', a.dataset.tab===tab));
-  $$('.panel').forEach(p=> p.classList.toggle('active', p.id===tab));
-}
-function route(){
-  const m = location.hash.match(/^#\/([a-z]+)/i);
-  showTab(m ? m[1] : 'schedule');
-}
+/* Routing */
+function showTab(tab){ $$('.tab').forEach(a=> a.classList.toggle('active', a.dataset.tab===tab)); $$('.panel').forEach(p=> p.classList.toggle('active', p.id===tab)); }
+function route(){ const m = location.hash.match(/^#\/([a-z]+)/i); showTab(m ? m[1] : 'schedule'); }
 window.addEventListener('hashchange', route);
 
+/* Banner */
 const HERO_IMAGES = [
   "https://upload.wikimedia.org/wikipedia/commons/2/28/Exactech_Arena_at_the_Stephen_C._O%27Connell_Center_court_2016.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/8/86/Florida_Gators_basketball_2006_crowd.jpg",
@@ -67,108 +65,77 @@ function renderHeroSlides(){
   const mount = $('#heroImages'); if(!mount) return;
   mount.innerHTML = HERO_IMAGES.map((src,i)=>`<div class="slide${i===0?' active':''}" style="background-image:url('${src}')"></div>`).join('');
 }
-function setHero(i){
-  const mount = $('#heroImages'); if(!mount) return;
-  $$('.slide', mount).forEach((s,idx)=> s.classList.toggle('active', idx===i));
-}
-function startHero(){
-  renderHeroSlides();
-  setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); }, 4000);
+function setHero(i){ const mount=$('#heroImages'); if(!mount) return; $$('.slide', mount).forEach((s,idx)=> s.classList.toggle('active', idx===i)); }
+function startHero(){ renderHeroSlides(); setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); }, 4000);
   $('#heroPrev')?.addEventListener('click', ()=>{ heroIdx=(heroIdx-1+HERO_IMAGES.length)%HERO_IMAGES.length; setHero(heroIdx); });
   $('#heroNext')?.addEventListener('click', ()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); });
 }
 
-/* ---------- fetch helpers ---------- */
+/* Fetch HTML via CORS-safe mirror */
 async function fetchHTML(url){
-  const r = await fetch(ALO(url));
-  if(!r.ok) throw new Error('Fetch failed '+url);
-  const text = await r.text();
-  return new DOMParser().parseFromString(text, 'text/html');
+  try{
+    const r = await fetch(JINA(url));
+    if(!r.ok) throw new Error('HTTP '+r.status+' on '+url);
+    const text = await r.text();
+    return new DOMParser().parseFromString(text, 'text/html');
+  }catch(e){
+    diag(`fetchHTML failed: ${url}\n${e.message}`);
+    throw e;
+  }
 }
 
-/* Sports-Reference: many tables are inside HTML comments.
-   This finds the comment that contains an element with the given id
-   and returns a DocumentFragment for parsing. */
+/* Parse commented SR tables */
 function parseCommentedTable(doc, id){
-  // 1) find live element first
-  let live = doc.querySelector(`#${id}`);
-  if(live) return live;
-
-  // 2) else scan comments
+  let live = doc.querySelector(`#${id}`); if(live) return live;
   const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT, null);
   let node, html='';
   while(node = walker.nextNode()){
-    if(node.nodeValue && node.nodeValue.includes(`id="${id}"`)){
-      html = node.nodeValue;
-      break;
-    }
+    if(node.nodeValue && node.nodeValue.includes(`id="${id}"`)){ html = node.nodeValue; break; }
   }
   if(!html) return null;
   const frag = new DOMParser().parseFromString(html, 'text/html');
   return frag.querySelector(`#${id}`);
 }
 
-/* ---------- global state ---------- */
-let STATE = {
-  season: CURRENT_SEASON,
-  schedule: [],
-  players: [],
-  team: {},
-  ufLogos: new Map(),
-  ufHeadshots: new Map()
-};
+/* Global state */
+let STATE = { season: CURRENT_SEASON, schedule: [], players: [], team: {}, ufLogos: new Map(), ufHeadshots: new Map() };
 
-/* ---------- season pickers ---------- */
+/* Season pickers */
 function fillSeasonSelects(){
   const opts = SEASONS.map(y=> `<option value="${y}" ${y===STATE.season?'selected':''}>${y-1}-${String(y).slice(-2)}</option>`).join('');
-  $('#seasonSelect').innerHTML = opts;
-  $('#statsSeason').innerHTML  = opts;
-  $('#rosterSeason').innerHTML = opts;
+  $('#seasonSelect').innerHTML = opts; $('#statsSeason').innerHTML = opts; $('#rosterSeason').innerHTML = opts;
 }
 ['seasonSelect','statsSeason','rosterSeason'].forEach(id=>{
-  document.addEventListener('change', (e)=>{
-    if(e.target && e.target.id===id){
-      STATE.season = Number(e.target.value);
-      refreshAll();
-    }
-  });
+  document.addEventListener('change', (e)=>{ if(e.target && e.target.id===id){ STATE.season = Number(e.target.value); refreshAll(); }});
 });
 
-/* ---------- UF opponent logos + headshots ---------- */
+/* UF opponent logos + headshots (best-effort) */
 async function loadUFLogos(){
   try{
     const doc = await fetchHTML(UF.schedule);
     const imgs = Array.from(doc.querySelectorAll('img')).filter(i=>/logo/i.test(i.alt||''));
-    const map = new Map();
-    imgs.forEach(img=>{
-      const name=(img.alt||'').replace(/ logo/i,'').trim();
-      if(name) map.set(name.toLowerCase(), img.src);
-    });
+    const map = new Map(); imgs.forEach(img=>{ const name=(img.alt||'').replace(/ logo/i,'').trim(); if(name) map.set(name.toLowerCase(), img.src); });
     STATE.ufLogos = map;
-  }catch{ /* ignore */ }
+  }catch(e){ diag('UF logos failed (non-critical)'); }
 }
 async function loadUFHeadshots(){
   try{
     const doc = await fetchHTML(UF.roster);
     const imgs = Array.from(doc.querySelectorAll('img')).filter(i=>/roster|headshot|player/i.test(i.src));
-    const map = new Map();
-    imgs.forEach(img=>{
-      const name = (img.alt||'').replace(/\s+-.*$/,'').trim();
-      if(name) map.set(name.toLowerCase(), img.src);
-    });
+    const map = new Map(); imgs.forEach(img=>{ const name=(img.alt||'').replace(/\s+-.*$/,'').trim(); if(name) map.set(name.toLowerCase(), img.src); });
     STATE.ufHeadshots = map;
-  }catch{ /* ignore */ }
+  }catch(e){ diag('Headshots failed (we use generated avatars)'); }
 }
 const logoFor = (opp)=> STATE.ufLogos.get((opp||'').toLowerCase()) || '';
 const headshotFor = (name)=> STATE.ufHeadshots.get((name||'').toLowerCase()) || `https://source.boringavatars.com/beam/96/${encodeURIComponent(name||'Gator')}`;
 
-/* ---------- SCHEDULE: SR primary + richer detail + row expand ---------- */
+/* ===== Schedule ===== */
 async function loadSchedule(){
   const url = SR.schedule(STATE.season);
   let rows=[];
   try{
     const doc = await fetchHTML(url);
-    const table = parseCommentedTable(doc,'schedule'); // robust!
+    const table = parseCommentedTable(doc,'schedule');
     const trs = Array.from(table?.querySelectorAll('tbody tr')||[]).filter(tr=> !tr.classList.contains('thead'));
     rows = trs.map((tr,i)=>{
       const get = (stat) => tr.querySelector(`[data-stat="${stat}"]`);
@@ -182,7 +149,6 @@ async function loadSchedule(){
       const oppPts = get('opp_pts')?.textContent?.trim() || '';
       const box = get('box_score_text')?.querySelector('a')?.href || '';
       const notes = get('notes')?.textContent?.trim() || '';
-      // Details we can compute/show:
       return {
         idx:i, date, time, opponent: opp, at, location: notes, result: res,
         score: (pts && oppPts) ? `${pts}-${oppPts}` : '',
@@ -190,17 +156,18 @@ async function loadSchedule(){
       };
     }).filter(g=>g.opponent);
   }catch(e){
-    toast('Schedule fetch failed. Retrying later.');
+    diag('Schedule fetch failed — using fallback sample.');
+    rows = FALLBACK.schedule[STATE.season] || [];
   }
-  // Try to enrich with UF page (venue/city/TV where present)
+
+  /* Enrich (best-effort) from UF page */
   try{
     const doc = await fetchHTML(UF.schedule);
-    // UF often has cards with time, TV, location; we do a light best-effort merge by opponent name
     const items = Array.from(doc.querySelectorAll('article,li,div')).filter(el=>/vs\.|at\s/i.test(el.textContent||''));
     const extra = [];
     items.forEach(el=>{
       const text = el.textContent.replace(/\s+/g,' ').trim();
-      const mOpp = text.match(/(vs\.|at)\s+([A-Za-z .&'-]+)/i);
+      const mOpp = text.match(/(vs\.|at)\s+([A-Za-z .&'\-]+)/i);
       if(mOpp){
         const opp = mOpp[2].trim();
         const tv = (text.match(/\bESPN\w*|SECN|CBS|ABC|FOX Sports|TNT|TBS\b/i)||[])[0]||'';
@@ -209,31 +176,21 @@ async function loadSchedule(){
         extra.push({opp, tv, city, venue});
       }
     });
-    rows.forEach(g=>{
-      const hit = extra.find(x=> x.opp.toLowerCase()===g.opponent.toLowerCase());
-      if(hit){ g.tv = hit.tv || g.tv; g.city = hit.city || g.city; g.venue = hit.venue || g.venue; }
-    });
-  }catch{ /* non-critical */ }
+    rows.forEach(g=>{ const hit = extra.find(x=> x.opp.toLowerCase()===g.opponent.toLowerCase()); if(hit){ g.tv ||= hit.tv; g.city ||= hit.city; g.venue ||= hit.venue; }});
+  }catch(e){ diag('UF enrich failed (ok)'); }
 
   // Running record
   let w=0,l=0;
-  rows.forEach(g=>{
-    if(/^W/.test(g.result)) w++;
-    if(/^L/.test(g.result)) l++;
-    g.record = (w||l) ? `${w}-${l}` : '';
-  });
+  rows.forEach(g=>{ if(/^W/.test(g.result)) w++; if(/^L/.test(g.result)) l++; g.record = (w||l) ? `${w}-${l}` : ''; });
 
   STATE.schedule = rows;
-  renderSchedule();
-  renderCountdown();
-  fillTicketGames();
+  renderSchedule(); renderCountdown(); fillTicketGames();
 }
 
 function renderSchedule(){
   const filter = $('#schedFilter')?.value || 'ALL';
   const rows = STATE.schedule.filter(g=> filter==='ALL' ? true : g.at===filter);
   const mount = $('#scheduleWrap'); if(!mount) return;
-
   mount.innerHTML = `
     <table id="scheduleTable">
       <thead><tr>
@@ -242,19 +199,12 @@ function renderSchedule(){
       <tbody>
         ${rows.map(g=>{
           const logo = logoFor(g.opponent);
-          const links = [
-            g.box ? `<a class="boxlink" href="${g.box}" target="_blank" rel="noopener">Box ↗</a>` : '',
-          ].filter(Boolean).join(' • ');
+          const links = [ g.box ? `<a class="boxlink" href="${g.box}" target="_blank" rel="noopener">Box ↗</a>` : '' ].filter(Boolean).join(' • ');
           return `
           <tr class="game-row" data-idx="${g.idx}">
             <td>${esc(g.date)}</td>
             <td>${esc(g.time||'TBA')}</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px">
-                ${logo?`<img src="${logo}" alt="" width="20" height="20" style="border-radius:4px">`:''}
-                <strong>${esc(g.opponent)}</strong>
-              </div>
-            </td>
+            <td><div style="display:flex;align-items:center;gap:8px">${logo?`<img src="${logo}" alt="" width="20" height="20" style="border-radius:4px">`:''}<strong>${esc(g.opponent)}</strong></div></td>
             <td>${g.at}</td>
             <td>${esc(g.result||'')}</td>
             <td>${esc(g.score||'')}</td>
@@ -275,20 +225,18 @@ function renderSchedule(){
         }).join('')}
       </tbody>
     </table>`;
-
   $$('#scheduleTable .game-row').forEach(tr=>{
-    tr.addEventListener('click', ()=>{
-      const id = tr.dataset.idx;
-      const det = $(`#scheduleTable [data-det="${id}"]`);
-      if(det) det.style.display = det.style.display==='none' ? '' : 'none';
-    });
+    tr.addEventListener('click', ()=>{ const id=tr.dataset.idx; const det=$(`#scheduleTable [data-det="${id}"]`); if(det) det.style.display = det.style.display==='none' ? '' : 'none'; });
   });
-  $$('#scheduleTable .addCal').forEach(b=> b.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    downloadICS(JSON.parse(b.dataset.game));
-  }));
+  $$('#scheduleTable .addCal').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); downloadICS(JSON.parse(b.dataset.game)); }));
 }
-
+$('#schedFilter')?.addEventListener('change', renderSchedule);
+$('#refreshSchedule')?.addEventListener('click', loadSchedule);
+$('#exportScheduleCsv')?.addEventListener('click', ()=>{
+  const rows = [["Date","Time","Opponent","H/A/N","Result","Score","Record","TV","Venue","City/State","Box"]];
+  STATE.schedule.forEach(g=> rows.push([g.date,g.time,g.opponent,g.at,g.result||"",g.score||"",g.record||"",g.tv||"",g.venue||"",g.city||"",g.box||""]));
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:"text/csv"})); a.download="gators_schedule_detailed.csv"; a.click();
+});
 function downloadICS(g){
   const dt = new Date(`${g.date} ${g.time||'12:00 PM'} ET`);
   const end = new Date(dt.getTime() + 2*60*60*1000);
@@ -301,136 +249,58 @@ function downloadICS(g){
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics],{type:"text/calendar"})); a.download = `UF_vs_${g.opponent.replace(/\s+/g,'_')}.ics`; a.click();
 }
 
-$('#schedFilter')?.addEventListener('change', renderSchedule);
-$('#refreshSchedule')?.addEventListener('click', loadSchedule);
-$('#exportScheduleCsv')?.addEventListener('click', ()=>{
-  const rows = [["Date","Time","Opponent","H/A/N","Result","Score","Record","TV","Venue","City/State","Box"]];
-  STATE.schedule.forEach(g=> rows.push([g.date,g.time,g.opponent,g.at,g.result||"",g.score||"",g.record||"",g.tv||"",g.venue||"",g.city||"",g.box||""]));
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:"text/csv"}));
-  a.download="gators_schedule_detailed.csv"; a.click();
-});
-
-/* countdown to next game */
+/* Countdown */
 function renderCountdown(){
   const el = $('#nextGame'); if(!el || !STATE.schedule.length) return;
-  const upcoming = STATE.schedule
-    .map(g=> ({...g, t: Date.parse(`${g.date} ${g.time||'12:00 PM'} ET`) }))
-    .filter(g=> !isNaN(g.t) && g.t > Date.now())
-    .sort((a,b)=>a.t-b.t)[0];
+  const upcoming = STATE.schedule.map(g=> ({...g, t: Date.parse(`${g.date} ${g.time||'12:00 PM'} ET`) }))
+                           .filter(g=> !isNaN(g.t) && g.t > Date.now())
+                           .sort((a,b)=>a.t-b.t)[0];
   if(!upcoming){ el.textContent = "Next game: TBA"; return; }
-  (function tick(){
-    const diff = upcoming.t - Date.now();
-    if(diff<=0){ el.textContent = `Gameday: vs ${upcoming.opponent}!`; return; }
+  (function tick(){ const diff = upcoming.t - Date.now(); if(diff<=0){ el.textContent = `Gameday: vs ${upcoming.opponent}!`; return; }
     const h=Math.floor(diff/3.6e6), m=Math.floor((diff%3.6e6)/6e4), s=Math.floor((diff%6e4)/1e3);
-    el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`;
-    requestAnimationFrame(()=> setTimeout(tick, 500));
-  })();
+    el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`; requestAnimationFrame(()=> setTimeout(tick, 500)); })();
 }
 
-/* ---------- STATS (robust SR "per_game" from comment) ---------- */
+/* ===== Stats (per_game from commented table) ===== */
 async function loadStats(){
   const url = SR.teamPage(STATE.season);
   let players=[];
   try{
     const doc = await fetchHTML(url);
-    const table = parseCommentedTable(doc,'per_game'); // THE FIX
+    const table = parseCommentedTable(doc,'per_game');
     const trs = Array.from(table?.querySelectorAll('tbody tr')||[]).filter(tr=> !tr.classList.contains('thead'));
     players = trs.map(tr=>{
       const get=(s)=> tr.querySelector(`[data-stat="${s}"]`)?.textContent?.trim()||'';
-      const cell = tr.querySelector('[data-stat="player"]');
-      const link = cell?.querySelector('a')?.href||'';
-      const name = cell?.textContent?.trim()||'';
-      return {
-        name, link,
-        gp:+get('g')||null,
-        mpg:+get('mp_per_g')||null,
-        ppg:+get('pts_per_g')||null,
-        rpg:+get('trb_per_g')||null,
-        apg:+get('ast_per_g')||null,
-        spg:+get('stl_per_g')||null,
-        bpg:+get('blk_per_g')||null,
-        tpg:+get('tov_per_g')||null,
-        fgPct:+(get('fg_pct')||0),
-        threePct:+(get('fg3_pct')||0),
-        ftPct:+(get('ft_pct')||0)
-      };
+      const cell = tr.querySelector('[data-stat="player"]'); const link = cell?.querySelector('a')?.href||''; const name = cell?.textContent?.trim()||'';
+      return { name, link, gp:+get('g')||null, mpg:+get('mp_per_g')||null, ppg:+get('pts_per_g')||null, rpg:+get('trb_per_g')||null, apg:+get('ast_per_g')||null,
+               spg:+get('stl_per_g')||null, bpg:+get('blk_per_g')||null, tpg:+get('tov_per_g')||null, fgPct:+(get('fg_pct')||0), threePct:+(get('fg3_pct')||0), ftPct:+(get('ft_pct')||0) };
     }).filter(p=>p.name);
   }catch(e){
-    toast('Stats fetch failed. Retrying later.');
+    diag('Stats fetch failed — using fallback players.');
+    players = FALLBACK.players[STATE.season] || [];
   }
   STATE.players = players;
 
-  const n = players.length || 1;
-  const sum = (k)=> players.reduce((a,b)=> a + (b[k]||0), 0);
-  STATE.team = {
-    gp: Math.max(...players.map(p=>p.gp||0)) || '—',
-    pts: +(sum('ppg')).toFixed(1),
-    reb: +(sum('rpg')).toFixed(1),
-    ast: +(sum('apg')).toFixed(1),
-    stl: +(sum('spg')).toFixed(1),
-    blk: +(sum('bpg')).toFixed(1),
-    tov: +(sum('tpg')).toFixed(1),
-    fgPct: +(players.reduce((a,b)=>a+(b.fgPct||0),0)/n).toFixed(3),
-    threePct: +(players.reduce((a,b)=>a+(b.threePct||0),0)/n).toFixed(3),
-    ftPct: +(players.reduce((a,b)=>a+(b.ftPct||0),0)/n).toFixed(3)
-  };
+  const n = players.length || 1, sum=(k)=>players.reduce((a,b)=>a+(b[k]||0),0);
+  STATE.team = { gp: Math.max(...players.map(p=>p.gp||0))||'—',
+    pts:+(sum('ppg')).toFixed(1), reb:+(sum('rpg')).toFixed(1), ast:+(sum('apg')).toFixed(1),
+    stl:+(sum('spg')).toFixed(1), blk:+(sum('bpg')).toFixed(1), tov:+(sum('tpg')).toFixed(1),
+    fgPct:+(players.reduce((a,b)=>a+(b.fgPct||0),0)/n).toFixed(3),
+    threePct:+(players.reduce((a,b)=>a+(b.threePct||0),0)/n).toFixed(3),
+    ftPct:+(players.reduce((a,b)=>a+(b.ftPct||0),0)/n).toFixed(3) };
 
-  renderTeamStats();
-  renderPlayerStats();
-  fillCompareOptions();
+  renderTeamStats(); renderPlayerStats(); fillCompareOptions(); renderRoster(); renderPropsTable(); fillTicketGames();
 }
-
-/* render team + players */
 function renderTeamStats(){
-  $('#teamStats').innerHTML = `
-    <table><thead><tr>
-      <th>GP</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th>
-    </tr></thead><tbody><tr>
-      <td>${STATE.team.gp ?? '—'}</td>
-      <td class="stat">${fmt(STATE.team.pts)}</td>
-      <td>${fmt(STATE.team.reb)}</td>
-      <td>${fmt(STATE.team.ast)}</td>
-      <td>${fmt(STATE.team.stl)}</td>
-      <td>${fmt(STATE.team.blk)}</td>
-      <td>${fmt(STATE.team.tov)}</td>
-      <td>${pct(STATE.team.fgPct)}</td>
-      <td>${pct(STATE.team.threePct)}</td>
-      <td>${pct(STATE.team.ftPct)}</td>
-    </tr></tbody></table>`;
+  $('#teamStats').innerHTML = `<table><thead><tr><th>GP</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead>
+  <tbody><tr><td>${STATE.team.gp ?? '—'}</td><td class="stat">${fmt(STATE.team.pts)}</td><td>${fmt(STATE.team.reb)}</td><td>${fmt(STATE.team.ast)}</td><td>${fmt(STATE.team.stl)}</td><td>${fmt(STATE.team.blk)}</td><td>${fmt(STATE.team.tov)}</td><td>${pct(STATE.team.fgPct)}</td><td>${pct(STATE.team.threePct)}</td><td>${pct(STATE.team.ftPct)}</td></tr></tbody></table>`;
 }
-
 function renderPlayerStats(){
   const q = ($('#playerFilter')?.value||"").toLowerCase();
-  let rows = STATE.players.slice();
-  if(q) rows = rows.filter(p=> p.name.toLowerCase().includes(q));
-  rows.sort((a,b)=> (b.ppg||0)-(a.ppg||0));
-  $('#playerStats').innerHTML = `
-    <table id="playersTable"><thead><tr>
-      <th>Player</th><th>GP</th><th>MPG</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th>
-    </tr></thead><tbody>
-      ${rows.map(p=>`
-        <tr class="plink" data-player="${esc(p.name)}">
-          <td><strong>${esc(p.name)}</strong></td>
-          <td>${p.gp ?? '—'}</td>
-          <td>${fmt(p.mpg)}</td>
-          <td class="stat">${fmt(p.ppg)}</td>
-          <td>${fmt(p.rpg)}</td>
-          <td>${fmt(p.apg)}</td>
-          <td>${fmt(p.spg)}</td>
-          <td>${fmt(p.bpg)}</td>
-          <td>${fmt(p.tpg)}</td>
-          <td>${pct(p.fgPct)}</td>
-          <td>${pct(p.threePct)}</td>
-          <td>${pct(p.ftPct)}</td>
-        </tr>`).join('')}
-    </tbody></table>`;
-  $$('#playersTable .plink').forEach(tr=>{
-    tr.addEventListener('click', ()=>{
-      const name = tr.dataset.player; const p = STATE.players.find(x=>x.name===name);
-      openPlayerModal(p);
-    });
-  });
+  let rows = STATE.players.slice(); if(q) rows = rows.filter(p=> p.name.toLowerCase().includes(q)); rows.sort((a,b)=> (b.ppg||0)-(a.ppg||0));
+  $('#playerStats').innerHTML = `<table id="playersTable"><thead><tr><th>Player</th><th>GP</th><th>MPG</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead><tbody>${
+    rows.map(p=>`<tr class="plink" data-player="${esc(p.name)}"><td><strong>${esc(p.name)}</strong></td><td>${p.gp ?? '—'}</td><td>${fmt(p.mpg)}</td><td class="stat">${fmt(p.ppg)}</td><td>${fmt(p.rpg)}</td><td>${fmt(p.apg)}</td><td>${fmt(p.spg)}</td><td>${fmt(p.bpg)}</td><td>${fmt(p.tpg)}</td><td>${pct(p.fgPct)}</td><td>${pct(p.threePct)}</td><td>${pct(p.ftPct)}</td></tr>`).join('') }</tbody></table>`;
+  $$('#playersTable .plink').forEach(tr=> tr.addEventListener('click', ()=>{ const p=STATE.players.find(x=>x.name===tr.dataset.player); openPlayerModal(p); }));
 }
 $('#playerFilter')?.addEventListener('input', renderPlayerStats);
 $('#exportPlayersCsv')?.addEventListener('click', ()=>{
@@ -440,16 +310,14 @@ $('#exportPlayersCsv')?.addEventListener('click', ()=>{
 });
 $('#refreshStats')?.addEventListener('click', loadStats);
 
-/* ---------- ROSTER: cards built from players + UF headshots ---------- */
+/* Roster cards (uses headshots when available) */
 function renderRoster(){
   const q = ($('#rosterFilter')?.value||"").toLowerCase();
   const favOnly = $('#favOnly')?.checked;
   const favs = getFavs();
-
   let rows = STATE.players.map(p=>({name:p.name, pos:''}));
   if(q) rows = rows.filter(p=> (p.name + p.pos).toLowerCase().includes(q));
   if(favOnly) rows = rows.filter(p=> favs.includes(p.name));
-
   const grid = $('#rosterGrid'); if(!grid) return;
   grid.innerHTML = rows.map(p=>{
     const starred = favs.includes(p.name);
@@ -457,23 +325,13 @@ function renderRoster(){
     return `<div class="card player" data-player="${esc(p.name)}">
       <div style="display:flex;gap:12px;align-items:center;">
         <img loading="lazy" src="${img}" alt="${esc(p.name)} headshot" width="64" height="64" style="border-radius:12px;object-fit:cover" />
-        <div>
-          <div><strong>${esc(p.name)}</strong></div>
-          <div class="meta">PPG ${fmt((STATE.players.find(x=>x.name===p.name)||{}).ppg)}</div>
-        </div>
+        <div><div><strong>${esc(p.name)}</strong></div><div class="meta">PPG ${fmt((STATE.players.find(x=>x.name===p.name)||{}).ppg)}</div></div>
         <button class="btn ghost" style="margin-left:auto" data-fav="${esc(p.name)}">${starred?'⭐':'☆'}</button>
       </div>
     </div>`;
   }).join('');
-
   $$('#rosterGrid [data-fav]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); toggleFavorite(b.dataset.fav); renderRoster(); }));
-  $$('#rosterGrid .player').forEach(card=>{
-    card.addEventListener('click', ()=>{
-      const name = card.dataset.player;
-      const p = STATE.players.find(x=>x.name===name);
-      openPlayerModal(p);
-    });
-  });
+  $$('#rosterGrid .player').forEach(card=> card.addEventListener('click', ()=> openPlayerModal(STATE.players.find(x=>x.name===card.dataset.player))));
 }
 $('#rosterFilter')?.addEventListener('input', renderRoster);
 $('#favOnly')?.addEventListener('change', renderRoster);
@@ -483,16 +341,14 @@ function getFavs(){ try{ return JSON.parse(localStorage.getItem('ghub_favs'))||[
 function setFavs(v){ localStorage.setItem('ghub_favs', JSON.stringify(v)); }
 function toggleFavorite(name){ const favs=getFavs(); const i=favs.indexOf(name); if(i>=0) favs.splice(i,1); else favs.push(name); setFavs(favs); }
 
-/* ---------- Compare ---------- */
+/* Compare */
 function fillCompareOptions(){
   const A = $('#cmpA'), B=$('#cmpB'); if(!A||!B) return; A.innerHTML=""; B.innerHTML="";
-  STATE.players.forEach(p=>{
-    const o1 = document.createElement('option'); o1.value=o1.textContent=p.name; A.appendChild(o1);
-    const o2 = document.createElement('option'); o2.value=o2.textContent=p.name; B.appendChild(o2);
-  });
-  if(STATE.players[0]) A.value=STATE.players[0].name;
-  if(STATE.players[1]) B.value=STATE.players[1].name;
+  STATE.players.forEach(p=>{ const o1=document.createElement('option'); o1.value=o1.textContent=p.name; A.appendChild(o1);
+                             const o2=document.createElement('option'); o2.value=o2.textContent=p.name; B.appendChild(o2); });
+  if(STATE.players[0]) A.value=STATE.players[0].name; if(STATE.players[1]) B.value=STATE.players[1].name;
 }
+$('#drawCompare')?.addEventListener('click', drawCompare);
 function drawCompare(){
   const a = STATE.players.find(p=>p.name===$('#cmpA')?.value);
   const b = STATE.players.find(p=>p.name===$('#cmpB')?.value);
@@ -502,21 +358,16 @@ function drawCompare(){
   const w=800, h=320, pad=40, col=(w-2*pad)/metrics.length;
   const bar = (val, max)=> Math.max(2, (val/max)*(h-2*pad));
   const svg = [`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
-  metrics.forEach((m,i)=>{
-    const x = pad + i*col + col/2;
+  metrics.forEach((m,i)=>{ const x = pad + i*col + col/2;
     svg.push(`<text x="${x}" y="${h-pad+18}" text-anchor="middle">${m.toUpperCase()}</text>`);
     svg.push(`<rect x="${x-22}" y="${h-pad-bar(a[m]||0,maxes[m])}" width="16" height="${bar(a[m]||0,maxes[m])}" rx="4" fill="#0021A5"></rect>`);
     svg.push(`<rect x="${x+6}"  y="${h-pad-bar(b[m]||0,maxes[m])}" width="16" height="${bar(b[m]||0,maxes[m])}" rx="4" fill="#FA4616"></rect>`);
   });
-  svg.push(`</g><g font-size="14" fill="currentColor">
-              <text x="${pad}" y="${pad-8}"><tspan fill="#0021A5">●</tspan> ${esc(a.name)}</text>
-              <text x="${pad+200}" y="${pad-8}"><tspan fill="#FA4616">●</tspan> ${esc(b.name)}</text>
-            </g></svg>`);
+  svg.push(`</g><g font-size="14" fill="currentColor"><text x="${pad}" y="${pad-8}"><tspan fill="#0021A5">●</tspan> ${esc(a.name)}</text><text x="${pad+200}" y="${pad-8}"><tspan fill="#FA4616">●</tspan> ${esc(b.name)}</text></g></svg>`);
   $('#compareWrap').innerHTML = svg.join('');
 }
-$('#drawCompare')?.addEventListener('click', drawCompare);
 
-/* ---------- Props (unchanged logic, uses STATE.players for lines) ---------- */
+/* Props (bankroll + slips + grading sim) */
 const LS = { bankroll:"ghub_bankroll", username:"ghub_username", openBets:"ghub_openBets", history:"ghub_betHistory", board:"ghub_leaderboard" };
 const getLS = (k,d)=> { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch{ return d } };
 const setLS = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
@@ -575,7 +426,6 @@ $('#clearBets')?.addEventListener('click', ()=>{ setLS(LS.openBets,[]); renderBe
 $('#exportHistory')?.addEventListener('click', ()=>{ const h=getLS(LS.history, []); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(h,null,2)],{type:"application/json"})); a.download='bet_history.json'; a.click(); });
 $('#importHistory')?.addEventListener('change', async (e)=>{ const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); setLS(LS.history, JSON.parse(text)); renderHistory(); toast("History imported"); });
 $('#clearHistory')?.addEventListener('click', ()=>{ setLS(LS.history, []); renderHistory(); toast("History cleared"); });
-$('#exportLeaderboard')?.addEventListener('click', ()=>{ const b=getLS(LS.board, []); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(b,null,2)],{type:"application/json"})); a.download="leaderboard.json"; a.click(); });
 
 function renderHistory(){
   const hist = getLS(LS.history, []);
@@ -590,21 +440,15 @@ function renderHistory(){
   }</tbody></table>`;
 }
 
-/* ---------- NEWS + PHOTOS ---------- */
+/* News + Photos */
 async function loadNews(){
   try{
-    const res = await fetch(ALO(UF.rss));
+    const res = await fetch(JINA(UF.rss));
+    if(!res.ok) throw new Error('rss '+res.status);
     const xml = await res.text();
     const items = parseRSS(xml).slice(0,12);
-    $('#newsList').innerHTML = items.map(n=>`
-      <article class="news-card">
-        <h4><a href="${n.link}" target="_blank" rel="noopener">${esc(n.title)}</a></h4>
-        <p>${esc(n.summary||"")}</p>
-        <p class="meta">${new Date(n.date).toLocaleString()}</p>
-      </article>`).join('');
-  }catch{
-    $('#newsList').innerHTML = `<article class="news-card"><h4>Welcome</h4><p class="muted">Auto schedule, stats, roster photos, news, props (for fun).</p></article>`;
-  }
+    $('#newsList').innerHTML = items.map(n=>`<article class="news-card"><h4><a href="${n.link}" target="_blank" rel="noopener">${esc(n.title)}</a></h4><p>${esc(n.summary||"")}</p><p class="meta">${new Date(n.date).toLocaleString()}</p></article>`).join('');
+  }catch{ $('#newsList').innerHTML = `<article class="news-card"><h4>Welcome</h4><p class="muted">Auto schedule, stats, roster photos, news, props (for fun).</p></article>`; }
 }
 function parseRSS(xml){
   const items=[]; const itemRe=/<item[\s\S]*?<\/item>/gi, titleRe=/<title>([\s\S]*?)<\/title>/i, linkRe=/<link>([\s\S]*?)<\/link>/i, descRe=/<description>([\s\S]*?)<\/description>/i, dateRe=/<pubDate>([\s\S]*?)<\/pubDate>/i;
@@ -614,62 +458,53 @@ function parseRSS(xml){
     const summary=(b.match(descRe)?.[1]||"").replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]*>/g,'').trim();
     const date=new Date(b.match(dateRe)?.[1]||Date.now()).toISOString();
     if(title && link) items.push({title, link, summary, date});
-  });
-  return items;
+  }); return items;
 }
 const PHOTOS = [
   { src:"https://upload.wikimedia.org/wikipedia/commons/2/28/Exactech_Arena_at_the_Stephen_C._O%27Connell_Center_court_2016.jpg", alt:"Exactech Arena" },
   { src:"https://upload.wikimedia.org/wikipedia/commons/8/86/Florida_Gators_basketball_2006_crowd.jpg", alt:"Gators crowd" },
   { src:"https://upload.wikimedia.org/wikipedia/commons/0/0e/Billy_Donovan_2008.jpg", alt:"Billy Donovan" }
 ];
-function loadPhotos(){
-  $('#photoGrid').innerHTML = PHOTOS.map(p=>`<div class="card"><img loading="lazy" src="${p.src}" alt="${esc(p.alt)}" class="photo"/><div class="meta">${esc(p.alt)}</div></div>`).join('');
-}
+function loadPhotos(){ $('#photoGrid').innerHTML = PHOTOS.map(p=>`<div class="card"><img loading="lazy" src="${p.src}" alt="${esc(p.alt)}" class="photo"/><div class="meta">${esc(p.alt)}</div></div>`).join(''); }
 
-/* ---------- modals ---------- */
+/* Player modal */
 function openPlayerModal(p){
   const modal=$('#scoutModal'), box=$('#scoutContent');
   if(!p){ box.innerHTML = `<p class="muted">No data.</p>`; modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); return; }
-  box.innerHTML = `
-    <h3 style="margin-top:0">${esc(p.name)}</h3>
-    <p class="meta"><a href="${p.link}" target="_blank" rel="noopener">Sports-Reference profile ↗</a></p>
+  box.innerHTML = `<h3 style="margin-top:0">${esc(p.name)}</h3><p class="meta"><a href="${p.link}" target="_blank" rel="noopener">Sports-Reference profile ↗</a></p>
     <table><tbody>
-      <tr><td>GP</td><td>${p.gp??'—'}</td></tr>
-      <tr><td>MPG</td><td>${fmt(p.mpg)}</td></tr>
-      <tr><td>PPG</td><td>${fmt(p.ppg)}</td></tr>
-      <tr><td>RPG</td><td>${fmt(p.rpg)}</td></tr>
-      <tr><td>APG</td><td>${fmt(p.apg)}</td></tr>
-      <tr><td>SPG</td><td>${fmt(p.spg)}</td></tr>
-      <tr><td>BPG</td><td>${fmt(p.bpg)}</td></tr>
-      <tr><td>TOV</td><td>${fmt(p.tpg)}</td></tr>
-      <tr><td>FG%</td><td>${pct(p.fgPct)}</td></tr>
-      <tr><td>3P%</td><td>${pct(p.threePct)}</td></tr>
-      <tr><td>FT%</td><td>${pct(p.ftPct)}</td></tr>
+      <tr><td>GP</td><td>${p.gp??'—'}</td></tr><tr><td>MPG</td><td>${fmt(p.mpg)}</td></tr><tr><td>PPG</td><td>${fmt(p.ppg)}</td></tr>
+      <tr><td>RPG</td><td>${fmt(p.rpg)}</td></tr><tr><td>APG</td><td>${fmt(p.apg)}</td></tr><tr><td>SPG</td><td>${fmt(p.spg)}</td></tr>
+      <tr><td>BPG</td><td>${fmt(p.bpg)}</td></tr><tr><td>TOV</td><td>${fmt(p.tpg)}</td></tr><tr><td>FG%</td><td>${pct(p.fgPct)}</td></tr>
+      <tr><td>3P%</td><td>${pct(p.threePct)}</td></tr><tr><td>FT%</td><td>${pct(p.ftPct)}</td></tr>
     </tbody></table>`;
   modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false');
 }
-function openOpponent(name){ const modal=$('#scoutModal'), box=$('#scoutContent'); box.innerHTML=`<h3>${esc(name)}</h3><p class="muted">Opponent scouting coming soon.</p>`; modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); }
 $('#closeScout')?.addEventListener('click', ()=>{ const m=$('#scoutModal'); m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); });
 $('#scoutModal')?.addEventListener('click', (e)=>{ if(e.target.classList.contains('modal-bg')) $('#closeScout').click(); });
 
-/* ---------- INIT & REFRESH ---------- */
-async function refreshAll(){
-  // Season may have changed; reload pages that depend on SR season
-  await Promise.all([loadUFLogos(), loadUFHeadshots(), loadSchedule(), loadStats()]);
-  renderRoster();
-  renderPropsTable();
-  fillTicketGames();
-  fillCompareOptions();
-  drawCompare();
-}
+/* FALLBACK demo data (keeps site functional during outages) */
+const FALLBACK = {
+  players: {
+    2026: [
+      { name:"Gator Guard", link:"#", gp:30, mpg:30.1, ppg:17.2, rpg:3.1, apg:4.5, spg:1.2, bpg:0.2, tpg:2.1, fgPct:.445, threePct:.367, ftPct:.812 },
+      { name:"Gator Wing",  link:"#", gp:31, mpg:28.4, ppg:14.0, rpg:5.6, apg:2.4, spg:0.9, bpg:0.6, tpg:1.8, fgPct:.471, threePct:.341, ftPct:.761 },
+      { name:"Gator Big",   link:"#", gp:29, mpg:25.3, ppg:11.5, rpg:7.8, apg:1.1, spg:0.6, bpg:1.3, tpg:1.5, fgPct:.552, threePct:.100, ftPct:.701 }
+    ]
+  },
+  schedule: {
+    2026: [
+      { idx:0, date:"Nov 7, 2025", time:"7:00 PM", opponent:"Stetson", at:"Home", location:"Exactech Arena", result:"", score:"", box:"", tv:"SECN+", venue:"Exactech Arena", city:"Gainesville, FL", record:"" },
+      { idx:1, date:"Nov 12, 2025", time:"8:00 PM", opponent:"Florida State", at:"Home", location:"Rivalry Game", result:"", score:"", box:"", tv:"ESPN2", venue:"Exactech Arena", city:"Gainesville, FL", record:"" }
+    ]
+  }
+};
 
-async function init(){
-  route();
-  startHero();
-  loadPhotos();
-  loadNews();
+/* INIT */
+async function refreshAll(){
   fillSeasonSelects();
-  await refreshAll();
-  setInterval(async ()=>{ await Promise.all([loadSchedule(), loadStats(), loadUFLogos()]); renderPlayerStats(); renderTeamStats(); renderSchedule(); }, REFRESH_MS);
+  await Promise.all([loadUFLogos(), loadUFHeadshots(), loadSchedule(), loadStats()]);
+  renderPropsTable(); renderBetSlip(); bankrollUI(); renderLeaderboard(); renderHistory(); drawCompare(); loadPhotos(); loadNews();
 }
-document.addEventListener('DOMContentLoaded', init);
+function routeAndStart(){ route(); startHero(); }
+document.addEventListener('DOMContentLoaded', async ()=>{ routeAndStart(); await refreshAll(); setInterval(async ()=>{ await Promise.all([loadSchedule(), loadStats(), loadUFLogos()]); renderPlayerStats(); renderTeamStats(); renderSchedule(); }, REFRESH_MS); });
