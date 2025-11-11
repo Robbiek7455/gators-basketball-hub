@@ -47,25 +47,35 @@
 
   <main class="container">
     <!-- SCHEDULE -->
-    <section id="schedule" class="panel active" role="tabpanel" aria-labelledby="tab-schedule">
+    <section id="schedule" class="panel active" role="tabpanel">
       <div class="panel-header">
-        <h3>2025–26 Schedule</h3>
+        <h3>Schedule</h3>
         <div class="actions">
+          <label class="select"><span>Season</span>
+            <select id="seasonSelect" class="input"></select>
+          </label>
           <select id="schedFilter" class="input">
-            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
+            <option value="ALL">All</option>
+            <option value="Home">Home</option>
+            <option value="Away">Away</option>
+            <option value="Neutral">Neutral</option>
           </select>
           <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
           <button id="refreshSchedule" class="btn">Refresh</button>
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
+      <p class="tiny muted">Click a row to expand game details (venue, city/state, TV, recap/box/photo links, running record).</p>
     </section>
 
     <!-- ROSTER -->
-    <section id="roster" class="panel" role="tabpanel" aria-labelledby="tab-roster">
+    <section id="roster" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Roster</h3>
         <div class="actions">
+          <label class="select"><span>Season</span>
+            <select id="rosterSeason" class="input"></select>
+          </label>
           <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
           <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
           <button id="refreshRoster" class="btn">Refresh</button>
@@ -75,10 +85,13 @@
     </section>
 
     <!-- STATS -->
-    <section id="stats" class="panel" role="tabpanel" aria-labelledby="tab-stats">
+    <section id="stats" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Team & Player Stats</h3>
         <div class="actions">
+          <label class="select"><span>Season</span>
+            <select id="statsSeason" class="input"></select>
+          </label>
           <button id="exportPlayersCsv" class="btn ghost">Export CSV</button>
           <button id="refreshStats" class="btn">Refresh</button>
         </div>
@@ -89,7 +102,7 @@
     </section>
 
     <!-- PROPS -->
-    <section id="props" class="panel" role="tabpanel" aria-labelledby="tab-props">
+    <section id="props" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Player Props (For Fun)</h3>
         <div class="actions">
@@ -132,7 +145,7 @@
     </section>
 
     <!-- COMPARE -->
-    <section id="compare" class="panel" role="tabpanel" aria-labelledby="tab-compare">
+    <section id="compare" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Compare Players</h3>
         <div class="actions">
@@ -145,7 +158,7 @@
     </section>
 
     <!-- NEWS -->
-    <section id="news" class="panel" role="tabpanel" aria-labelledby="tab-news">
+    <section id="news" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>News</h3>
         <div class="actions"><button id="refreshNews" class="btn">Refresh</button></div>
@@ -154,7 +167,7 @@
     </section>
 
     <!-- PHOTOS -->
-    <section id="photos" class="panel" role="tabpanel" aria-labelledby="tab-photos">
+    <section id="photos" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Photos</h3>
         <div class="actions"><small class="muted">Galleries & 2025 celebration</small></div>
@@ -163,7 +176,7 @@
     </section>
 
     <!-- ABOUT -->
-    <section id="about" class="panel" role="tabpanel" aria-labelledby="tab-about">
+    <section id="about" class="panel" role="tabpanel">
       <div class="panel-header"><h3>About</h3></div>
       <div class="card">
         <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
