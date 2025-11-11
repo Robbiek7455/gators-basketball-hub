@@ -4,50 +4,52 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
-  <meta name="description" content="UF Gators men's basketball: automatic schedule, stats, roster photos, news, props (mock), and more." />
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- HERO / SHUFFLE BANNER -->
-  <header class="hero">
-    <div class="hero-images" id="heroImages" aria-hidden="true"></div>
-    <div class="hero-overlay">
-      <div class="brand">
-        <img class="logo" alt="Florida Gators logo"
-             src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
-        <div class="brand-text">
-          <h1>Florida Gators</h1>
-          <h2>Men’s Basketball Hub (Fan-made)</h2>
-        </div>
-      </div>
-      <div class="hero-bottom">
-        <div class="hero-controls">
-          <button id="heroPrev" class="pill ghost" aria-label="Prev">‹</button>
-          <div id="nextGame" class="countdown">Next game: …</div>
-          <button id="heroNext" class="pill ghost" aria-label="Next">›</button>
-        </div>
-        <nav class="tabs" role="tablist" aria-label="Main sections">
-          <a class="tab" data-tab="schedule" href="#/schedule">Schedule</a>
-          <a class="tab" data-tab="roster"   href="#/roster">Roster</a>
-          <a class="tab" data-tab="stats"    href="#/stats">Stats</a>
-          <a class="tab" data-tab="props"    href="#/props">Props</a>
-          <a class="tab" data-tab="compare"  href="#/compare">Compare</a>
-          <a class="tab" data-tab="news"     href="#/news">News</a>
-          <a class="tab" data-tab="photos"   href="#/photos">Photos</a>
-          <a class="tab" data-tab="about"    href="#/about">About</a>
-          <button id="themeToggle" class="tab" aria-label="Toggle theme" type="button">🌙</button>
-        </nav>
+  <!-- MASTHEAD -->
+  <header class="masthead">
+    <div class="masthead-inner">
+      <img class="masthead-logo" alt="Florida Gators logo"
+        src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
+      <div>
+        <h1>Florida Gators</h1>
+        <h2>Men’s Basketball (Fan Hub)</h2>
       </div>
     </div>
   </header>
 
+  <!-- HERO / CAROUSEL -->
+  <section class="hero">
+    <div class="hero-images" id="heroImages" aria-hidden="true"></div>
+    <div class="hero-overlay">
+      <div class="hero-top">
+        <div id="nextGame" class="countdown">Next game: …</div>
+        <div class="hero-arrows">
+          <button id="heroPrev" class="pill ghost" aria-label="Prev">‹</button>
+          <button id="heroNext" class="pill ghost" aria-label="Next">›</button>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Main sections">
+        <a class="tab" data-tab="schedule" href="#/schedule">Schedule</a>
+        <a class="tab" data-tab="roster"   href="#/roster">Roster</a>
+        <a class="tab" data-tab="stats"    href="#/stats">Stats</a>
+        <a class="tab" data-tab="props"    href="#/props">Props</a>
+        <a class="tab" data-tab="compare"  href="#/compare">Compare</a>
+        <a class="tab" data-tab="news"     href="#/news">News</a>
+        <a class="tab" data-tab="photos"   href="#/photos">Photos</a>
+        <a class="tab" data-tab="about"    href="#/about">About</a>
+        <button id="themeToggle" class="tab" type="button" aria-label="Toggle theme">🌙</button>
+      </nav>
+    </div>
+  </section>
+
   <main class="container">
     <!-- SCHEDULE -->
-    <section id="schedule" class="panel" role="tabpanel">
+    <section id="schedule" class="panel active" role="tabpanel" aria-labelledby="tab-schedule">
       <div class="panel-header">
-        <h3>2025–26 Schedule (auto)</h3>
+        <h3>2025–26 Schedule</h3>
         <div class="actions">
           <select id="schedFilter" class="input">
             <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
@@ -57,15 +59,12 @@
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
-      <div class="actions mt">
-        <button id="enableGameReminder" class="btn ghost">Enable 30-min Game Reminder</button>
-      </div>
     </section>
 
     <!-- ROSTER -->
-    <section id="roster" class="panel" role="tabpanel">
+    <section id="roster" class="panel" role="tabpanel" aria-labelledby="tab-roster">
       <div class="panel-header">
-        <h3>Roster (auto headshots)</h3>
+        <h3>Roster</h3>
         <div class="actions">
           <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
           <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
@@ -76,9 +75,9 @@
     </section>
 
     <!-- STATS -->
-    <section id="stats" class="panel" role="tabpanel">
+    <section id="stats" class="panel" role="tabpanel" aria-labelledby="tab-stats">
       <div class="panel-header">
-        <h3>Team & Player Stats (auto)</h3>
+        <h3>Team & Player Stats</h3>
         <div class="actions">
           <button id="exportPlayersCsv" class="btn ghost">Export CSV</button>
           <button id="refreshStats" class="btn">Refresh</button>
@@ -89,8 +88,8 @@
       <div id="playerStats" class="table-wrap"></div>
     </section>
 
-    <!-- PROPS (MOCK) -->
-    <section id="props" class="panel" role="tabpanel">
+    <!-- PROPS -->
+    <section id="props" class="panel" role="tabpanel" aria-labelledby="tab-props">
       <div class="panel-header">
         <h3>Player Props (For Fun)</h3>
         <div class="actions">
@@ -100,7 +99,6 @@
           <button id="resetBankroll" class="btn ghost">Reset</button>
         </div>
       </div>
-
       <div class="card" style="margin-bottom:10px">
         <div class="actions">
           <label class="select"><span>Attach to game</span><select id="ticketGame" class="input"></select></label>
@@ -109,9 +107,7 @@
           <button id="imgSlip" class="btn ghost">Copy Slip as Image</button>
         </div>
       </div>
-
       <div id="propsTable" class="table-wrap"></div>
-
       <div class="bet-slip">
         <h4>Bet Slip</h4>
         <div id="betList"></div>
@@ -120,18 +116,9 @@
           <button id="placeBets" class="btn">Place Bets</button>
           <button id="clearBets" class="btn ghost">Clear</button>
         </div>
-        <div class="bet-actions">
-          <button id="gradeBets" class="btn">Grade Bets</button>
-          <button id="exportLeaderboard" class="btn ghost">Export Leaderboard</button>
-          <label class="btn ghost" style="cursor:pointer">Import Leaderboard
-            <input id="importLeaderboard" type="file" accept="application/json" style="display:none">
-          </label>
-        </div>
       </div>
-
       <h4 class="mt">Leaderboard</h4>
       <div id="leaderboard" class="table-wrap"></div>
-
       <h4 class="mt">Bet History</h4>
       <div class="actions" style="margin-bottom:8px;">
         <button id="exportHistory" class="btn ghost">Export History</button>
@@ -141,12 +128,11 @@
         <button id="clearHistory" class="btn ghost">Clear History</button>
       </div>
       <div id="historyWrap" class="table-wrap"></div>
-
       <p class="disclaimer">For entertainment only. No real money. Lines come from per-game averages (rounded to .5).</p>
     </section>
 
     <!-- COMPARE -->
-    <section id="compare" class="panel" role="tabpanel">
+    <section id="compare" class="panel" role="tabpanel" aria-labelledby="tab-compare">
       <div class="panel-header">
         <h3>Compare Players</h3>
         <div class="actions">
@@ -159,7 +145,7 @@
     </section>
 
     <!-- NEWS -->
-    <section id="news" class="panel" role="tabpanel">
+    <section id="news" class="panel" role="tabpanel" aria-labelledby="tab-news">
       <div class="panel-header">
         <h3>News</h3>
         <div class="actions"><button id="refreshNews" class="btn">Refresh</button></div>
@@ -168,16 +154,16 @@
     </section>
 
     <!-- PHOTOS -->
-    <section id="photos" class="panel" role="tabpanel">
+    <section id="photos" class="panel" role="tabpanel" aria-labelledby="tab-photos">
       <div class="panel-header">
         <h3>Photos</h3>
-        <div class="actions"><small class="muted">2025 title & UF galleries (linked)</small></div>
+        <div class="actions"><small class="muted">Galleries & 2025 celebration</small></div>
       </div>
       <div id="photoGrid" class="grid photos"></div>
     </section>
 
     <!-- ABOUT -->
-    <section id="about" class="panel" role="tabpanel">
+    <section id="about" class="panel" role="tabpanel" aria-labelledby="tab-about">
       <div class="panel-header"><h3>About</h3></div>
       <div class="card">
         <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
@@ -185,7 +171,7 @@
     </section>
   </main>
 
-  <!-- Generic modal (player card / scout / QR) -->
+  <!-- Modal -->
   <div id="scoutModal" class="modal hidden" aria-hidden="true">
     <div class="modal-bg"></div>
     <div class="modal-card">
@@ -194,7 +180,7 @@
     </div>
   </div>
 
-  <!-- Toasts -->
+  <!-- Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
