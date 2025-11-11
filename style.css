@@ -2,7 +2,7 @@
   --gator-blue:#0021A5;
   --gator-orange:#FA4616;
   --ink:#0e1116;
-  --bg:#f6f7fb;
+  --bg:#f5f7fb;
   --card:#ffffff;
   --muted:#667085;
   --ring: rgba(0,33,165,0.25);
@@ -11,20 +11,22 @@
 }
 
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+html,body{margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
 
 .site-header{
-  background:linear-gradient(90deg,var(--gator-blue),#1936c4);
-  color:#fff; padding:16px 20px; position:sticky; top:0; z-index:10; box-shadow:var(--shadow);
+  background:
+    linear-gradient(rgba(0,33,165,.88),rgba(0,33,165,.88)),
+    url('https://floridagators.com/images/2025/3/16/MBB_SEC_Title_Confetti.jpg') center/cover no-repeat;
+  color:#fff; padding:18px 20px; position:sticky; top:0; z-index:20; box-shadow:var(--shadow);
 }
 .brand{display:flex;align-items:center;gap:14px}
-.logo{width:56px;height:56px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.logo{width:56px;height:56px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.35))}
 .brand-text h1{margin:0;font-size:22px;letter-spacing:.4px}
-.brand-text h2{margin:2px 0 0 0;font-weight:500;opacity:.9;font-size:14px}
+.brand-text h2{margin:2px 0 0 0;font-weight:500;opacity:.95;font-size:14px}
 
 .tabs{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 .tab{
-  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
   color:#fff; padding:10px 14px; border-radius:999px; cursor:pointer;
   backdrop-filter:saturate(160%) blur(4px);
 }
@@ -37,24 +39,20 @@ html,body{margin:0;padding:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helveti
 
 .panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .panel-header h3{margin:0}
-.actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
 .select{display:flex;align-items:center;gap:8px}
 .select select{padding:8px 10px;border-radius:10px;border:1px solid #e6e8ef;background:#fff}
-
-.input{padding:8px 10px;border-radius:10px;border:1px solid #e6e8ef;background:#fff;min-width:220px}
-
+.input{padding:8px 10px;border-radius:10px;border:1px solid #e6e8ef;background:#fff;min-width:200px}
 .btn{
   background:var(--gator-orange); color:#fff; border:none; padding:10px 14px;
-  border-radius:12px; cursor:pointer; box-shadow:0 4px 14px rgba(250,70,22,.2);
+  border-radius:12px; cursor:pointer; box-shadow:0 4px 14px rgba(250,70,22,.25);
 }
-.btn:hover{filter:brightness(.96)}
-.btn:focus{outline:3px solid var(--ring)}
+.btn:hover{filter:brightness(.96)} .btn:focus{outline:3px solid var(--ring)}
+.btn.ghost{background:#fff;color:var(--gator-blue);border:1px solid #e6e8ef}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-.card{
-  background:#fff; border:1px solid #eef0f4; border-radius:14px; padding:12px; box-shadow:var(--shadow);
-}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.card{background:#fff;border:1px solid #eef0f4;border-radius:14px;padding:12px;box-shadow:var(--shadow)}
 .card .meta{font-size:12px;color:var(--muted);margin-top:4px}
 
 .table-wrap{overflow:auto;border:1px solid #eef0f4;border-radius:12px;background:#fff}
@@ -63,14 +61,22 @@ th,td{padding:10px;border-bottom:1px solid #f0f2f7;text-align:left;font-size:14p
 th{background:#f8f9fd;position:sticky;top:0}
 tr:hover td{background:#fcfdff}
 
-.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(0,33,165,.08);color:var(--gator-blue)}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(0,33,165,.08);color:var(--gator-blue);border:1px solid rgba(0,33,165,.18)}
 .stat{font-weight:600}
+.muted{color:#6b7280}
+.tiny{font-size:12px}
+.mt{margin-top:10px}
 
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .news-card{border:1px solid #eef0f4;border-radius:14px;background:#fff;padding:14px;box-shadow:var(--shadow)}
 .news-card h4{margin:0 0 6px 0;font-size:16px}
 .news-card a{color:var(--gator-blue);text-decoration:none}
 .news-card p{margin:6px 0 0 0;color:var(--muted);font-size:14px}
+
+.photos img{width:100%;height:160px;object-fit:cover;border-radius:12px;border:1px solid #eef0f4;box-shadow:var(--shadow)}
+
+.bet-slip{margin-top:14px;border:1px dashed #e6e8ef;border-radius:12px;padding:12px;background:#fff}
+.bet-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
 .site-footer{color:#6b7280;text-align:center;margin:20px 0;font-size:13px}
 .disclaimer{color:#6b7280;font-size:12px;margin-top:8px}
