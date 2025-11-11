@@ -2,125 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Florida Gators Men's Basketball Hub</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Florida Gators Men’s Basketball Hub</title>
+  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, and for-fun props with a mock-betting leaderboard." />
+  <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
   <link rel="stylesheet" href="style.css" />
-  <meta name="description" content="Florida Gators men's basketball hub: rosters, past teams, live stats, news, and for-fun player props." />
 </head>
 <body>
   <header class="site-header">
     <div class="brand">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" alt="Florida Gators logo" class="logo" />
+      <img class="logo" alt="Florida Gators logo"
+           src="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg" />
       <div class="brand-text">
         <h1>Florida Gators</h1>
-        <h2>Men’s Basketball Hub</h2>
+        <h2>Men’s Basketball Hub (Fan-made)</h2>
       </div>
     </div>
+
     <nav class="tabs" role="tablist" aria-label="Main sections">
       <button class="tab active" data-tab="roster" role="tab" aria-selected="true">Roster</button>
-      <button class="tab" data-tab="past" role="tab" aria-selected="false">Past Rosters</button>
-      <button class="tab" data-tab="team" role="tab" aria-selected="false">Team Stats</button>
-      <button class="tab" data-tab="players" role="tab" aria-selected="false">Player Stats</button>
+      <button class="tab" data-tab="schedule" role="tab" aria-selected="false">Schedule</button>
+      <button class="tab" data-tab="stats" role="tab" aria-selected="false">Stats</button>
+      <button class="tab" data-tab="props" role="tab" aria-selected="false">Props (Mock)</button>
       <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
-      <button class="tab" data-tab="props" role="tab" aria-selected="false">Player Props (Fun)</button>
+      <button class="tab" data-tab="photos" role="tab" aria-selected="false">Photos</button>
     </nav>
   </header>
 
   <main class="container">
-    <!-- Roster (current) -->
+    <!-- ROSTER -->
     <section id="roster" class="panel active" role="tabpanel">
       <div class="panel-header">
-        <h3>Current Roster</h3>
+        <h3>2025–26 Roster</h3>
         <div class="actions">
-          <label class="select">
-            <span>Season</span>
-            <select id="currentSeasonSelect"></select>
-          </label>
+          <small class="muted">Source: official roster & Sports-Reference</small>
           <button id="refreshRoster" class="btn">Refresh</button>
         </div>
       </div>
       <div id="rosterGrid" class="grid"></div>
     </section>
 
-    <!-- Past Rosters -->
-    <section id="past" class="panel" role="tabpanel">
+    <!-- SCHEDULE -->
+    <section id="schedule" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Past Rosters</h3>
+        <h3>2025–26 Schedule (ET)</h3>
         <div class="actions">
-          <label class="select">
-            <span>Season</span>
-            <select id="pastSeasonSelect"></select>
-          </label>
-          <button id="loadPastRoster" class="btn">Load</button>
+          <button id="refreshSchedule" class="btn">Refresh</button>
         </div>
       </div>
-      <div id="pastRosterGrid" class="grid"></div>
+      <div id="scheduleWrap" class="table-wrap"></div>
     </section>
 
-    <!-- Team Stats -->
-    <section id="team" class="panel" role="tabpanel">
+    <!-- STATS -->
+    <section id="stats" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Team Stats</h3>
+        <h3>Team & Player Stats</h3>
         <div class="actions">
-          <label class="select">
-            <span>Season</span>
-            <select id="teamSeasonSelect"></select>
-          </label>
-          <button id="refreshTeamStats" class="btn">Refresh</button>
+          <button id="refreshStats" class="btn">Refresh</button>
         </div>
       </div>
       <div id="teamStats" class="table-wrap"></div>
-    </section>
-
-    <!-- Player Stats -->
-    <section id="players" class="panel" role="tabpanel">
-      <div class="panel-header">
-        <h3>Player Stats</h3>
-        <div class="actions">
-          <label class="select">
-            <span>Season</span>
-            <select id="playerSeasonSelect"></select>
-          </label>
-          <input id="playerSearch" class="input" type="search" placeholder="Search player..." />
-          <button id="refreshPlayerStats" class="btn">Refresh</button>
-        </div>
+      <div class="subhead">
+        <input id="playerFilter" class="input" type="search" placeholder="Filter players..." />
       </div>
       <div id="playerStats" class="table-wrap"></div>
+      <p class="muted tiny">Auto-refresh ready. If a JSON/CSV endpoint is added later, the page will update itself every 5 minutes.</p>
     </section>
 
-    <!-- News -->
+    <!-- PROPS (MOCK BETTING) -->
+    <section id="props" class="panel" role="tabpanel">
+      <div class="panel-header">
+        <h3>Player Props (For Fun)</h3>
+        <div class="actions">
+          <input id="usernameInput" class="input" placeholder="Username (for leaderboard)" />
+          <button id="startBankroll" class="btn">Set $1,000 Bankroll</button>
+          <span id="bankroll" class="badge">$0</span>
+        </div>
+      </div>
+
+      <div id="propsTable" class="table-wrap"></div>
+
+      <div class="bet-slip">
+        <h4>Bet Slip</h4>
+        <div id="betList"></div>
+        <div class="bet-actions">
+          <input id="wagerInput" type="number" min="1" class="input" placeholder="Wager $" />
+          <button id="placeBets" class="btn">Place Bets</button>
+          <button id="clearBets" class="btn ghost">Clear</button>
+        </div>
+        <p class="muted tiny">Grading: when you click “Grade Bets”, results are simulated from today’s averages ± variance. It’s entertainment only.</p>
+        <button id="gradeBets" class="btn">Grade Bets</button>
+      </div>
+
+      <h4 class="mt">Leaderboard</h4>
+      <div id="leaderboard" class="table-wrap"></div>
+      <p class="disclaimer">
+        For entertainment only. No real money. Lines derive from per-game averages (rounded to .5).
+      </p>
+    </section>
+
+    <!-- NEWS -->
     <section id="news" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>News</h3>
-        <div class="actions">
-          <button id="refreshNews" class="btn">Refresh</button>
-        </div>
+        <div class="actions"><button id="refreshNews" class="btn">Refresh</button></div>
       </div>
       <div id="newsList" class="cards"></div>
     </section>
 
-    <!-- Player Props -->
-    <section id="props" class="panel" role="tabpanel">
+    <!-- PHOTOS -->
+    <section id="photos" class="panel" role="tabpanel">
       <div class="panel-header">
-        <h3>Player Props (for fun)</h3>
-        <div class="actions">
-          <label class="select">
-            <span>Season</span>
-            <select id="propsSeasonSelect"></select>
-          </label>
-          <button id="recalcProps" class="btn">Recalculate Lines</button>
-        </div>
+        <h3>Photos</h3>
+        <div class="actions"><small class="muted">2025 title & UF galleries (linked)</small></div>
       </div>
-      <div id="propsTable" class="table-wrap"></div>
-      <p class="disclaimer">
-        Props are for entertainment only. Lines are derived from per-game averages and are <em>not</em> betting advice.
-      </p>
+      <div id="photoGrid" class="grid photos"></div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>Unofficial fan project. Florida Gators® and logos are trademarks of the University of Florida. Images remain the property of their owners.</p>
-    <p>Data: Sports-Reference.com (manual/CSV/proxy ingestion). News: official site RSS or other published sources.</p>
+    <p>Unofficial fan project. Florida Gators® and marks belong to the University of Florida. Images remain the property of their owners.</p>
+    <p>Data sources credited below.</p>
   </footer>
 
   <script src="app.js"></script>
