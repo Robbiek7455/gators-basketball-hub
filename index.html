@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
-  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, props (mock), and more." />
+  <meta name="description" content="Florida Gators men’s basketball: roster, schedule, stats, news, photos, props (mock), scouting, and more." />
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="style.css" />
@@ -94,7 +94,21 @@
           <button id="resetBankroll" class="btn ghost">Reset</button>
         </div>
       </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="actions">
+          <label class="select">
+            <span>Attach to game</span>
+            <select id="ticketGame" class="input"></select>
+          </label>
+          <button id="shareSlip" class="btn ghost">Share Slip</button>
+          <button id="qrSlip" class="btn ghost">QR Slip</button>
+          <button id="imgSlip" class="btn ghost">Copy Slip as Image</button>
+        </div>
+      </div>
+
       <div id="propsTable" class="table-wrap"></div>
+
       <div class="bet-slip">
         <h4>Bet Slip</h4>
         <div id="betList"></div>
@@ -112,8 +126,21 @@
           </label>
         </div>
       </div>
+
       <h4 class="mt">Leaderboard</h4>
       <div id="leaderboard" class="table-wrap"></div>
+
+      <h4 class="mt">Bet History</h4>
+      <div class="actions" style="margin-bottom:8px;">
+        <button id="exportHistory" class="btn ghost">Export History</button>
+        <label class="btn ghost" style="cursor:pointer">
+          Import History
+          <input id="importHistory" type="file" accept="application/json" style="display:none">
+        </label>
+        <button id="clearHistory" class="btn ghost">Clear History</button>
+      </div>
+      <div id="historyWrap" class="table-wrap"></div>
+
       <p class="disclaimer">For entertainment only. No real money. Lines come from per-game averages (rounded to .5).</p>
     </section>
 
@@ -127,9 +154,7 @@
           <button id="drawCompare" class="btn">Compare</button>
         </div>
       </div>
-      <div id="compareWrap" class="card" style="padding:0">
-        <!-- SVG chart injected here -->
-      </div>
+      <div id="compareWrap" class="card" style="padding:0"></div>
     </section>
 
     <!-- STANDINGS -->
@@ -163,6 +188,18 @@
   <footer class="site-footer">
     <p>Unofficial fan project. Florida Gators® and marks belong to the University of Florida. Images remain the property of their owners.</p>
   </footer>
+
+  <!-- Opponent scouting modal -->
+  <div id="scoutModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-bg"></div>
+    <div class="modal-card">
+      <button id="closeScout" class="btn ghost" style="float:right">Close</button>
+      <div id="scoutContent"></div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>
