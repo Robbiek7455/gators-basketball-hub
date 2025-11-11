@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="stylesheet" href="./style.css?v=20"/>
+  <link rel="stylesheet" href="./style.css?v=23"/>
   <meta name="color-scheme" content="light dark">
 </head>
 <body>
@@ -52,10 +52,7 @@
         <div class="actions">
           <label class="select"><span>Season</span><select id="seasonSelect" class="input"></select></label>
           <select id="schedFilter" class="input">
-            <option value="ALL">All</option>
-            <option value="Home">Home</option>
-            <option value="Away">Away</option>
-            <option value="Neutral">Neutral</option>
+            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
           </select>
           <button id="refreshSchedule" class="btn">Refresh</button>
           <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
@@ -171,15 +168,9 @@
     <section id="diag" class="panel" role="tabpanel" style="display:none"></section>
   </main>
 
-  <div id="scoutModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-bg"></div>
-    <div class="modal-card">
-      <button id="closeScout" class="btn ghost" style="float:right">Close</button>
-      <div id="scoutContent"></div>
-    </div>
-  </div>
+  <div id="toast" class="toast hidden"></div>
 
-  <!-- bump ?v when you update app.js to defeat cache -->
-  <script src="./app.js?v=20" defer></script>
+  <!-- bump ?v to defeat cache after each edit -->
+  <script src="./app.js?v=23" defer></script>
 </body>
 </html>
