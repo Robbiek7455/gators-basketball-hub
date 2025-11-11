@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <!-- MASTHEAD -->
@@ -55,17 +55,14 @@
             <select id="seasonSelect" class="input"></select>
           </label>
           <select id="schedFilter" class="input">
-            <option value="ALL">All</option>
-            <option value="Home">Home</option>
-            <option value="Away">Away</option>
-            <option value="Neutral">Neutral</option>
+            <option value="ALL">All</option><option value="Home">Home</option><option value="Away">Away</option><option value="Neutral">Neutral</option>
           </select>
           <button id="exportScheduleCsv" class="btn ghost">Export CSV</button>
           <button id="refreshSchedule" class="btn">Refresh</button>
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
-      <p class="tiny muted">Click a row to expand game details (venue, city/state, TV, recap/box/photo links, running record).</p>
+      <p class="tiny muted">Click a row to expand details (venue, city/state, TV, notes, calendar, box link, running record).</p>
     </section>
 
     <!-- ROSTER -->
@@ -182,6 +179,9 @@
         <p>Unofficial fan project. Data auto-fetched from Sports-Reference and floridagators.com. Images belong to their owners.</p>
       </div>
     </section>
+
+    <!-- DIAGNOSTICS (shows fetch errors/fallbacks) -->
+    <section id="diag" class="panel" role="tabpanel" style="display:none"></section>
   </main>
 
   <!-- Modal -->
@@ -196,6 +196,6 @@
   <!-- Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
