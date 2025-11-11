@@ -7,6 +7,20 @@
 (function () {
   "use strict";
 
+  // --- boot + health probe ---
+  const BOOT_VER = "v23";
+  const boot = `[BOOT] app.js ${BOOT_VER} @ ${new Date().toLocaleString()}`;
+  (function logBoot(){
+    const d = document.querySelector("#diag");
+    if (d) { d.style.display = 'block'; d.innerHTML = `<div class="card"><pre class="tiny">${boot}</pre></div>` + d.innerHTML; }
+  })();
+  function _health(label, obj) {
+    const d = document.querySelector("#diag");
+    if (!d) return;
+    const msg = `[HEALTH] ${label}: ` + JSON.stringify(obj);
+    d.innerHTML = `<div class="card"><pre class="tiny">${msg}</pre></div>` + d.innerHTML;
+  }
+
   /* ---------- Settings ---------- */
   const CURRENT_SEASON = 2026;
   const SEASONS = [2026, 2025, 2024, 2023];
@@ -64,12 +78,8 @@
   window.addEventListener("hashchange", route);
 
   /* ---------- Banner / Hero: 2025 Championship photos (WRUF) ---------- */
-  // Sources: WRUF photo gallery of the 2025 title game. Hotlink-friendly.
-  // Ref: Gallery page (details & context). :contentReference[oaicite:0]{index=0}
   const HERO_IMAGES = [
-    // Trophy lift (hi-res scaled)
     "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-scaled-e1744107148886.jpg",
-    // More celebration/action (smaller but reliable)
     "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-300x200.jpg",
     "https://www.wruf.com/wp-content/uploads/2025/04/01-040725-UF-Basketball-Championship-ML-27-300x200.jpg",
     "https://www.wruf.com/wp-content/uploads/2025/04/10-040725-UF-Basketball-Championship-ML-13-300x200.jpg",
@@ -132,7 +142,6 @@
       STATE.stats.team = teamStats;
 
       // ---- PLAYER STATS ----
-      // Option A: from teamData (fast)
       let players = [];
       const teamAthletes = (teamData?.team?.athletes || []).flatMap(g => g.items || []);
       if (teamAthletes.length) {
@@ -149,8 +158,6 @@
           };
         });
       }
-
-      // Option B: per-athlete fetch (when team endpoint omits stats)
       if (!players.length && STATE.roster.length) {
         const ids = STATE.roster.map(r => r.id);
         players = await (async function fetchAthleteStatsBatch(ids, batchSize = 5) {
@@ -178,8 +185,9 @@
           return out;
         })(ids);
       }
-
       STATE.stats.players = players;
+
+      _health("roster/stats", { roster: STATE.roster.length, players: (STATE.stats.players||[]).length, teamKeys: Object.keys(STATE.stats.team||{}).length });
 
       renderRoster(); renderTeamStats(); renderPlayerStats(); fillCompare(); renderPropsTable();
     } catch (e) {
@@ -218,6 +226,9 @@
         };
       });
       STATE.schedule = games;
+
+      _health("schedule", { games: STATE.schedule.length, first: STATE.schedule[0]?.opponent || null });
+
       renderSchedule(); renderCountdown(); fillTicketGames();
     }catch(e){
       diag("loadSchedule: "+e.message);
@@ -230,6 +241,7 @@
       const done = STATE.schedule.filter(g => g.result).slice(-10);
       if (!done.length) {
         STATE.analytics = [];
+        _health("analytics", { rows: 0 });
         renderAnalytics();
         return;
       }
@@ -263,10 +275,14 @@
         } catch { /* ignore single-game errors */ }
       }
       STATE.analytics = rows;
+
+      _health("analytics", { rows: STATE.analytics.length });
+
       renderAnalytics();
     } catch (e) {
       diag("loadAnalytics: " + e.message);
       STATE.analytics = [];
+      _health("analytics", { rows: 0, error: true });
       renderAnalytics();
     }
   }
@@ -369,7 +385,7 @@
     const a=STATE.stats.players.find(p=>p.name===($("#cmpA")?.value||""));
     const b=STATE.stats.players.find(p=>p.name===($("#cmpB")?.value||""));
     if(!a||!b) return;
-    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rbg:15,apg:8,spg:3,bpg:3,tpg:5};
+    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rpg:15,apg:8,spg:3,bpg:3,tpg:5};
     const w=800,h=320,pad=40,col=(w-2*pad)/metrics.length; const bar=(val,max)=>Math.max(2,(val/(max||1))*(h-2*pad));
     const svg=[`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
     metrics.forEach((m,i)=>{ const x=pad+i*col+col/2;
