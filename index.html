@@ -26,6 +26,7 @@
       <button class="tab" data-tab="props" role="tab" aria-selected="false">Props (Mock)</button>
       <button class="tab" data-tab="news" role="tab" aria-selected="false">News</button>
       <button class="tab" data-tab="photos" role="tab" aria-selected="false">Photos</button>
+      <button id="themeToggle" class="tab" aria-label="Toggle theme">🌙</button>
     </nav>
   </header>
 
@@ -35,7 +36,7 @@
       <div class="panel-header">
         <h3>2025–26 Roster</h3>
         <div class="actions">
-          <small class="muted">Source: official roster & Sports-Reference</small>
+          <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
           <button id="refreshRoster" class="btn">Refresh</button>
         </div>
       </div>
@@ -47,6 +48,12 @@
       <div class="panel-header">
         <h3>2025–26 Schedule (ET)</h3>
         <div class="actions">
+          <select id="schedFilter" class="input">
+            <option value="ALL">All</option>
+            <option value="Home">Home</option>
+            <option value="Away">Away</option>
+            <option value="Neutral">Neutral</option>
+          </select>
           <button id="refreshSchedule" class="btn">Refresh</button>
         </div>
       </div>
@@ -59,6 +66,7 @@
         <h3>Team & Player Stats</h3>
         <div class="actions">
           <button id="refreshStats" class="btn">Refresh</button>
+          <button id="exportPlayersCsv" class="btn ghost">Export CSV</button>
         </div>
       </div>
       <div id="teamStats" class="table-wrap"></div>
@@ -66,17 +74,17 @@
         <input id="playerFilter" class="input" type="search" placeholder="Filter players..." />
       </div>
       <div id="playerStats" class="table-wrap"></div>
-      <p class="muted tiny">Auto-refresh ready. If a JSON/CSV endpoint is added later, the page will update itself every 5 minutes.</p>
     </section>
 
-    <!-- PROPS (MOCK BETTING) -->
+    <!-- PROPS (MOCK) -->
     <section id="props" class="panel" role="tabpanel">
       <div class="panel-header">
         <h3>Player Props (For Fun)</h3>
         <div class="actions">
-          <input id="usernameInput" class="input" placeholder="Username (for leaderboard)" />
+          <input id="usernameInput" class="input" placeholder="Username (leaderboard)" />
           <button id="startBankroll" class="btn">Set $1,000 Bankroll</button>
           <span id="bankroll" class="badge">$0</span>
+          <button id="resetBankroll" class="btn ghost">Reset</button>
         </div>
       </div>
 
@@ -90,15 +98,19 @@
           <button id="placeBets" class="btn">Place Bets</button>
           <button id="clearBets" class="btn ghost">Clear</button>
         </div>
-        <p class="muted tiny">Grading: when you click “Grade Bets”, results are simulated from today’s averages ± variance. It’s entertainment only.</p>
-        <button id="gradeBets" class="btn">Grade Bets</button>
+        <div class="bet-actions">
+          <button id="gradeBets" class="btn">Grade Bets</button>
+          <button id="exportLeaderboard" class="btn ghost">Export Leaderboard</button>
+          <label class="btn ghost" style="cursor:pointer">
+            Import Leaderboard
+            <input id="importLeaderboard" type="file" accept="application/json" style="display:none">
+          </label>
+        </div>
       </div>
 
       <h4 class="mt">Leaderboard</h4>
       <div id="leaderboard" class="table-wrap"></div>
-      <p class="disclaimer">
-        For entertainment only. No real money. Lines derive from per-game averages (rounded to .5).
-      </p>
+      <p class="disclaimer">For entertainment only. No real money. Lines come from per-game averages (rounded to .5).</p>
     </section>
 
     <!-- NEWS -->
@@ -122,7 +134,6 @@
 
   <footer class="site-footer">
     <p>Unofficial fan project. Florida Gators® and marks belong to the University of Florida. Images remain the property of their owners.</p>
-    <p>Data sources credited below.</p>
   </footer>
 
   <script src="app.js"></script>
