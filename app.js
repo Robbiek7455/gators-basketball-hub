@@ -2,12 +2,12 @@
    Gators Hub — ESPN build
    - Roster + stats + schedule: ESPN JSON (CORS-safe)
    - Team stats extractor + computed fallback
-   - HD banner photos
+   - HD banner via <img srcset>
    ========================================================= */
 (function () {
   "use strict";
 
-  const BOOT_VER = "v26";
+  const BOOT_VER = "v27";
   const boot = `[BOOT] app.js ${BOOT_VER} @ ${new Date().toLocaleString()}`;
   (function logBoot(){
     const d = document.querySelector("#diag");
@@ -17,7 +17,6 @@
     const d = document.querySelector("#diag"); if (!d) return;
     d.innerHTML = `<div class="card"><pre class="tiny">[HEALTH] ${label}: ${JSON.stringify(obj)}</pre></div>` + d.innerHTML;
   }
-  function diag(msg){ const d=$("#diag"); if(!d) return; d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">${esc(msg)}</pre></div>`; }
 
   /* ---------- Settings ---------- */
   const CURRENT_SEASON = 2026;
@@ -30,7 +29,6 @@
 
   const ok = (r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r; };
   const j  = (r) => r.json();
-
   const espnTeam     = (season) => fetch(`${ESPN_BASE}/teams/${TEAM_ID}?enable=roster,statistics,record&season=${season}`).then(ok).then(j);
   const espnRoster   = (season) => fetch(`${ESPN_BASE}/teams/${TEAM_ID}/roster?season=${season}`).then(ok).then(j);
   const espnSchedule = (season, seasontype) => fetch(`${ESPN_BASE}/teams/${TEAM_ID}/schedule?season=${season}&seasontype=${seasontype}`).then(ok).then(j);
@@ -69,7 +67,6 @@
     const out = {};
     const put = (k, v) => { if (Number.isFinite(v)) out[k] = v; };
     const allStats = cats.flatMap(c => (c?.stats || []));
-
     for (const s of allStats) {
       const name = (s.name || s.displayName || s.shortDisplayName || s.abbreviation || "").toUpperCase().replace(/\s+/g,'');
       const val  = Number(s.value);
@@ -121,24 +118,35 @@
   function route(){ const m=location.hash.match(/^#\/([a-z]+)/i); showTab(m?m[1]:"schedule"); }
   window.addEventListener("hashchange", route);
 
-  /* ---------- HD Banner ---------- */
-  // Removed the small 300x200 images to avoid blur. Keeping only high-res.
-  const HERO_IMAGES = [
-    "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-scaled-e1744107148886.jpg",
-    "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-11-scaled.jpg",
-    "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-21-scaled.jpg"
+  /* ---------- HD Banner via <img srcset> ---------- */
+  const HERO_HD = [
+    {
+      src: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-scaled-e1744107148886.jpg",
+      srcset: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-1536x1025.jpg 1536w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-2048x1367.jpg 2048w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-26-scaled-e1744107148886.jpg 2560w"
+    },
+    {
+      src: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-11-scaled.jpg",
+      srcset: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-11-1536x1025.jpg 1536w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-11-2048x1367.jpg 2048w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-11-scaled.jpg 2560w"
+    },
+    {
+      src: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-21-scaled.jpg",
+      srcset: "https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-21-1536x1025.jpg 1536w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-21-2048x1367.jpg 2048w, https://www.wruf.com/wp-content/uploads/2025/04/040725-UF-Basketball-Championship-ML-21-scaled.jpg 2560w"
+    }
   ];
   let heroIdx=0;
   function renderHeroSlides(){
     const mount=$("#heroImages"); if(!mount) return;
-    mount.innerHTML = HERO_IMAGES.map((src,i)=>`<div class="slide${i===0?" active":""}" style="background-image:url('${src}')"></div>`).join("");
+    mount.innerHTML = HERO_HD.map((p,i)=>`
+      <div class="slide${i===0?" active":""}">
+        <img src="${p.src}" srcset="${p.srcset}" sizes="100vw" alt="Gators 2025 Champions">
+      </div>`).join("");
   }
   function setHero(i){ const mount=$("#heroImages"); if(!mount) return; $$(".slide", mount).forEach((s,idx)=>s.classList.toggle("active", idx===i)); }
   function startHero(){
     renderHeroSlides();
-    setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); }, 5000);
-    $("#heroPrev")?.addEventListener("click", ()=>{ heroIdx=(heroIdx-1+HERO_IMAGES.length)%HERO_IMAGES.length; setHero(heroIdx); });
-    $("#heroNext")?.addEventListener("click", ()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); });
+    setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_HD.length; setHero(heroIdx); }, 5000);
+    $("#heroPrev")?.addEventListener("click", ()=>{ heroIdx=(heroIdx-1+HERO_HD.length)%HERO_HD.length; setHero(heroIdx); });
+    $("#heroNext")?.addEventListener("click", ()=>{ heroIdx=(heroIdx+1)%HERO_HD.length; setHero(heroIdx); });
   }
 
   /* ---------- State ---------- */
@@ -206,7 +214,6 @@
           };
         });
       }
-      // Fallback per-athlete queries if needed
       if (!players.length && STATE.roster.length) {
         const ids = STATE.roster.map(r => r.id);
         players = await (async function fetchAthleteStatsBatch(ids, batchSize = 5) {
@@ -236,7 +243,7 @@
       }
       STATE.stats.players = players;
 
-      // ---- TEAM STATS (extractor + computed fallback) ----
+      // ---- TEAM STATS ----
       let teamStats = extractTeamStats(teamData);
       if (!teamStats || !Object.keys(teamStats).length) teamStats = computeTeamFromPlayers(players);
       STATE.stats.team = teamStats;
@@ -249,7 +256,7 @@
 
       renderRoster(); renderTeamStats(); renderPlayerStats(); fillCompare(); renderPropsTable();
     } catch (e) {
-      diag("loadRosterAndStats: " + e.message);
+      const d=$("#diag"); if(d){ d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">loadRosterAndStats: ${esc(e.message)}</pre></div>`; }
       $("#rosterGrid").innerHTML = "";
       $("#rosterEmpty").style.display = "block";
       $("#playerStats").innerHTML = '<div class="card"><p class="tiny muted">Stats unavailable.</p></div>';
@@ -289,7 +296,7 @@
 
       renderSchedule(); renderCountdown(); fillTicketGames();
     }catch(e){
-      diag("loadSchedule: "+e.message);
+      const d=$("#diag"); if(d){ d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">loadSchedule: ${esc(e.message)}</pre></div>`; }
       $("#scheduleWrap").innerHTML='<div class="card"><p class="tiny muted">Schedule unavailable.</p></div>';
     }
   }
@@ -316,19 +323,20 @@
           const possEst = Math.max(1, Math.round((pOur + pOpp) / 2));
           const ptsUs = our.points || 0, ptsOpp = opp.points || 0;
 
-          rows.push({
-            date: g.date, opp: g.opponent, at: g.at, score: g.score,
+          rows.push({ date: g.date, opp: g.opponent, at: g.at, score: g.score,
             ortg: +(ptsUs * 100 / possEst).toFixed(1),
             drtg: +(ptsOpp * 100 / possEst).toFixed(1),
             pace: +((possEst * 40) / (our.minutes || 200)).toFixed(1),
             efg: +(efg(our) * 100).toFixed(1),
             toPct: +(tor(our) * 100).toFixed(1),
-            box: g.box
-          });
-        } catch { /* ignore */ }
+            box: g.box });
+        } catch {}
       }
       STATE.analytics = rows; _health("analytics", { rows: STATE.analytics.length }); renderAnalytics();
-    } catch (e) { diag("loadAnalytics: " + e.message); STATE.analytics = []; _health("analytics", { rows: 0, error: true }); renderAnalytics(); }
+    } catch (e) {
+      const d=$("#diag"); if(d){ d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">loadAnalytics: ${esc(e.message)}</pre></div>`; }
+      STATE.analytics = []; _health("analytics", { rows: 0, error: true }); renderAnalytics();
+    }
   }
 
   /* ==================== RENDERERS ==================== */
@@ -362,14 +370,6 @@
     $$("#scheduleTable .game-row").forEach(tr=>tr.addEventListener("click", ()=>{ const id=tr.dataset.id; const det=$(`#scheduleTable [data-det="${id}"]`); if(det) det.style.display = det.style.display==="none" ? "" : "none"; }));
     $$("#scheduleTable .addCal").forEach(b=>b.addEventListener("click", (e)=>{ e.stopPropagation(); downloadICS(JSON.parse(b.dataset.game)); }));
   }
-
-  $("#schedFilter")?.addEventListener("change", renderSchedule);
-  $("#refreshSchedule")?.addEventListener("click", loadSchedule);
-  $("#exportScheduleCsv")?.addEventListener("click", ()=>{
-    const rows=[["Date","Time","Opponent","H/A","Result","Score","TV","Venue","City","Box"]];
-    STATE.schedule.forEach(g=>rows.push([g.date,g.time,g.opponent,g.at,g.result||"",g.score||"",g.tv||"",g.venue||"",g.city||"",g.box||""]));
-    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:"text/csv"})); a.download="gators_schedule.csv"; a.click();
-  });
   function downloadICS(g){
     const start = new Date(`${g.date} ${g.time} ET`);
     const end = new Date(start.getTime()+2*60*60*1000);
@@ -397,8 +397,6 @@
     $$("#rosterGrid [data-fav]").forEach(b=>b.addEventListener("click", (e)=>{ e.stopPropagation(); toggleFavorite(b.dataset.fav); renderRoster(); }));
     $$("#rosterGrid .player").forEach(card=>card.addEventListener("click", ()=>{ const p=STATE.stats.players.find(x=>x.name===card.dataset.player); openPlayerModal(p); }));
   }
-  $("#rosterFilter")?.addEventListener("input", renderRoster);
-  $("#favOnly")?.addEventListener("change", renderRoster);
 
   function renderTeamStats(){
     const t=STATE.stats.team||{};
@@ -414,41 +412,6 @@
     $$("#playersTable .plink").forEach(tr=>tr.addEventListener("click", ()=>{ const p=STATE.stats.players.find(x=>x.name===tr.dataset.player); openPlayerModal(p); }));
   }
 
-  $("#refreshRoster")?.addEventListener("click", loadRosterAndStats);
-  $("#refreshStats")?.addEventListener("click", loadRosterAndStats);
-
-  /* Compare */
-  function fillCompare(){ const A=$("#cmpA"), B=$("#cmpB"); if(!A||!B) return; A.innerHTML=""; B.innerHTML="";
-    STATE.stats.players.forEach(p=>{ A.add(new Option(p.name,p.name)); B.add(new Option(p.name,p.name)); });
-    if(STATE.stats.players[0]) A.value=STATE.stats.players[0].name; if(STATE.stats.players[1]) B.value=STATE.stats.players[1].name;
-  }
-  $("#drawCompare")?.addEventListener("click", ()=>{
-    const a=STATE.stats.players.find(p=>p.name===($("#cmpA")?.value||""));
-    const b=STATE.stats.players.find(p=>p.name===($("#cmpB")?.value||""));
-    if(!a||!b) return;
-    const metrics=["ppg","rpg","apg","spg","bpg","tpg"]; const maxes={ppg:30,rpg:15,apg:8,spg:3,bpg:3,tpg:5};
-    const w=800,h=320,pad=40,col=(w-2*pad)/metrics.length; const bar=(val,max)=>Math.max(2,(val/(max||1))*(h-2*pad));
-    const svg=[`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
-    metrics.forEach((m,i)=>{ const x=pad+i*col+col/2;
-      svg.push(`<text x="${x}" y="${h-pad+18}" text-anchor="middle">${m.toUpperCase()}</text>`);
-      svg.push(`<rect x="${x-22}" y="${h-pad-bar(a[m]||0, (maxes[m]||10))}" width="16" height="${bar(a[m]||0,(maxes[m]||10))}" rx="4" fill="#0021A5"></rect>`);
-      svg.push(`<rect x="${x+6}"  y="${h-pad-bar(b[m]||0, (maxes[m]||10))}" width="16" height="${bar(b[m]||0,(maxes[m]||10))}" rx="4" fill="#FA4616"></rect>`);
-    });
-    svg.push(`</g><g font-size="14"><text x="${pad}" y="${pad-8}"><tspan fill="#0021A5">●</tspan> ${esc(a.name)}</text><text x="${pad+200}" y="${pad-8}"><tspan fill="#FA4616">●</tspan> ${esc(b.name)}</text></g></svg>`);
-    $("#compareWrap").innerHTML = svg.join("");
-  });
-
-  function renderAnalytics(){
-    const rows=STATE.analytics.slice().reverse();
-    $("#analyticsWrap").innerHTML = rows.length
-      ? `<table><thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>ORtg</th><th>DRtg</th><th>Pace</th><th>eFG%</th><th>TO%</th><th>Box</th></tr></thead><tbody>
-          ${rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.opp)}</td><td>${r.at}</td><td>${esc(r.score)}</td><td class="stat">${r.ortg}</td><td>${r.drtg}</td><td>${r.pace}</td><td>${r.efg}</td><td>${r.toPct}</td><td><a class="boxlink" target="_blank" rel="noopener" href="${r.box}">↗</a></td></tr>`).join("")}
-        </tbody></table>`
-      : `<div class="card"><p class="tiny muted">No completed games yet.</p></div>`;
-  }
-  $("#refreshAnalytics")?.addEventListener("click", loadAnalytics);
-
-  /* ---------- Modal & Favorites omitted for brevity (unchanged vs v25)… ---------- */
   function openPlayerModal(p){
     const modal=$("#scoutModal"), box=$("#scoutContent");
     if(!p){ box.innerHTML='<p class="muted">No data.</p>'; modal.classList.remove("hidden"); modal.setAttribute("aria-hidden","false"); return; }
@@ -461,13 +424,10 @@
       </tbody></table>`;
     modal.classList.remove("hidden"); modal.setAttribute("aria-hidden","false");
   }
-  function getFavs(){ try{ return JSON.parse(localStorage.getItem("ghub_favs"))||[]; }catch{ return []; } }
-  function setFavs(v){ localStorage.setItem("ghub_favs", JSON.stringify(v)); }
-  function toggleFavorite(name){ const favs=getFavs(); const i=favs.indexOf(name); if(i>=0) favs.splice(i,1); else favs.push(name); setFavs(favs); }
 
-  /* ---------- Photos & News ---------- */
+  /* ---------- News, Photos, Props (same as before) ---------- */
   function loadPhotos(){
-    const PHOTOS = HERO_IMAGES.map((src,i)=>({src, alt: i===0 ? "National Champions 2025" : "Gators 2025"}));
+    const PHOTOS = HERO_HD.map(p=>({src:p.src, alt:"Gators 2025"}));
     $("#photoGrid").innerHTML = PHOTOS.map(p=>`<div class="card"><img loading="lazy" src="${p.src}" alt="${esc(p.alt)}"><div class="meta">${esc(p.alt)}</div></div>`).join('');
   }
   function loadNews(){
@@ -484,36 +444,10 @@
     }).catch(()=>{ $("#newsList").innerHTML = '<article class="news-card"><h4>Welcome</h4><p class="muted">Live schedule/roster/stats + analytics.</p></article>'; });
   }
 
-  /* ---------- Init ---------- */
-  function applyTabClicks(){ /* anchors already clickable via hash router */ }
-  function renderCountdown(){
-    const el=$("#nextGame"); if(!el || !STATE.schedule.length) return;
-    const upcoming = STATE.schedule.map(g=>Object.assign({}, g, { t: Date.parse(`${g.date} ${g.time} ET`) }))
-      .filter(g=>!isNaN(g.t) && g.t>Date.now()).sort((a,b)=>a.t-b.t)[0];
-    if(!upcoming){ el.textContent="Next game: TBA"; return; }
-    (function tick(){ const diff=upcoming.t - Date.now(); if(diff<=0){ el.textContent=`Gameday: vs ${upcoming.opponent}!`; return; }
-      const h=Math.floor(diff/3.6e6), m=Math.floor((diff%3.6e6)/6e4), s=Math.floor((diff%6e4)/1e3);
-      el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`;
-      requestAnimationFrame(()=>setTimeout(tick,500));
-    })();
-  }
-
-  async function refreshAll(){
-    applyTabClicks();
-    fillSeasonSelects();
-    await Promise.all([loadRosterAndStats(), loadSchedule()]);
-    renderPropsTable(); renderBetSlip(); bankrollUI(); renderLeaderboard(); loadPhotos(); loadNews(); renderCountdown();
-    await loadAnalytics();
-  }
-
-  /* Props (unchanged) */
-  const LS={bankroll:"ghub_bankroll",username:"ghub_username",openBets:"ghub_openBets",history:"ghub_betHistory",board:"ghub_leaderboard"};
-  const getLS=(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch{ return d; } };
-  const setLS=(k,v)=>localStorage.setItem(k, JSON.stringify(v));
-  const roundHalf=(n)=>Math.round(n*2)/2;
-  function defaultLines(){ return (STATE.stats.players||[]).map(p=>({ player:p.name, pts:roundHalf(p.ppg||0), reb:roundHalf(p.rpg||0), ast:roundHalf(p.apg||0), pra:roundHalf((p.ppg||0)+(p.rpg||0)+(p.apg||0)) })); }
-  function bankrollUI(){ $("#bankroll").textContent="$"+Number(getLS(LS.bankroll,0)).toLocaleString(); if($("#usernameInput")) $("#usernameInput").value=getLS(LS.username,"")||""; }
-  function upsertLeaderboard(user,bankroll){ const board=getLS(LS.board,[]); const i=board.findIndex(b=>b.user===user); if(i>=0)board[i].bankroll=bankroll; else board.push({user,bankroll,updated:Date.now()}); setLS(LS.board,board); renderLeaderboard(); }
+  /* ---------- Utilities ---------- */
+  function getFavs(){ try{ return JSON.parse(localStorage.getItem("ghub_favs"))||[]; }catch{ return []; } }
+  function setFavs(v){ localStorage.setItem("ghub_favs", JSON.stringify(v)); }
+  function toggleFavorite(name){ const favs=getFavs(); const i=favs.indexOf(name); if(i>=0) favs.splice(i,1); else favs.push(name); setFavs(favs); }
   function renderLeaderboard(){ const board=getLS(LS.board,[]).sort((a,b)=>b.bankroll-a.bankroll);
     $("#leaderboard").innerHTML = `<table><thead><tr><th>#</th><th>User</th><th>Bankroll</th><th>Updated</th></tr></thead><tbody>
       ${board.map((b,i)=>`<tr><td>${i+1}</td><td>${esc(b.user)}</td><td>$${Number(b.bankroll).toLocaleString()}</td><td>${new Date(b.updated||Date.now()).toLocaleString()}</td></tr>`).join("")}
@@ -522,6 +456,13 @@
   function fillTicketGames(){ const sel=$("#ticketGame"); if(!sel) return;
     sel.innerHTML = `<option value="">(None)</option>` + STATE.schedule.map(g=>`<option value="${esc(`${g.date}|${g.time}|${g.opponent}`)}">${esc(`${g.date} – ${g.opponent} (${g.at})`)}</option>`).join("");
   }
+  const LS={bankroll:"ghub_bankroll",username:"ghub_username",openBets:"ghub_openBets",history:"ghub_betHistory",board:"ghub_leaderboard"};
+  const getLS=(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch{ return d; } };
+  const setLS=(k,v)=>localStorage.setItem(k, JSON.stringify(v));
+  const roundHalf=(n)=>Math.round(n*2)/2;
+  function defaultLines(){ return (STATE.stats.players||[]).map(p=>({ player:p.name, pts:roundHalf(p.ppg||0), reb:roundHalf(p.rpg||0), ast:roundHalf(p.apg||0), pra:roundHalf((p.ppg||0)+(p.rpg||0)+(p.apg||0)) })); }
+  function bankrollUI(){ $("#bankroll").textContent="$"+Number(getLS(LS.bankroll,0)).toLocaleString(); if($("#usernameInput")) $("#usernameInput").value=getLS(LS.username,"")||""; }
+  function upsertLeaderboard(user,bankroll){ const board=getLS(LS.board,[]); const i=board.findIndex(b=>b.user===user); if(i>=0)board[i].bankroll=bankroll; else board.push({user,bankroll,updated:Date.now()}); setLS(LS.board,board); renderLeaderboard(); }
   function renderPropsTable(){
     const lines = defaultLines();
     $("#propsTable").innerHTML = `<table><thead><tr><th>Player</th><th>PTS</th><th>REB</th><th>AST</th><th>P+R+A</th><th>Pick</th><th>Add</th></tr></thead><tbody>
@@ -532,16 +473,14 @@
     $$(".addBet").forEach(b=>b.addEventListener("click", ()=>{ const player=b.dataset.player; const sel=b.closest("tr").querySelector(".pick").value; const slip=getLS(LS.openBets,[]); slip.push({player, market:sel, odds:-110}); setLS(LS.openBets, slip); renderBetSlip(); toast("Added to slip"); }));
   }
   function renderBetSlip(){ const slip=getLS(LS.openBets,[]); $("#betList").innerHTML = slip.length? slip.map((b,i)=>`<div class="card"><div><strong>${esc(b.player)}</strong> — ${b.market.replace('_',' ')} <span class="badge">@${b.odds}</span></div><div class="meta">Slip item #${i+1}</div></div>`).join("") : `<p class="muted tiny">No selections yet.</p>`; }
-  function handleBankroll(){ const user=$("#usernameInput")?.value.trim()||"Guest"; setLS(LS.username,user); setLS(LS.bankroll,1000); upsertLeaderboard(user,1000); bankrollUI(); toast("Bankroll set to $1,000"); }
-  function resetBankroll(){ setLS(LS.bankroll,0); bankrollUI(); toast("Bankroll reset"); }
   function placeBets(){
     const wager=Math.max(1, Number($("#wagerInput")?.value||0)); const bank=getLS(LS.bankroll,0); const slip=getLS(LS.openBets,[]); const gameId=$("#ticketGame")?.value||"";
     if(!slip.length) return toast("Add picks first."); if(bank<wager) return toast("Not enough bankroll.");
     const hist=getLS(LS.history,[]); hist.push({ placedAt:Date.now(), wager, gameId, bets:slip, status:"pending" });
     setLS(LS.history, hist); setLS(LS.openBets, []); setLS(LS.bankroll, bank-wager); renderBetSlip(); bankrollUI(); renderHistory(); toast("Bets placed!");
   }
-  $("#startBankroll")?.addEventListener("click", handleBankroll);
-  $("#resetBankroll")?.addEventListener("click", resetBankroll);
+  $("#startBankroll")?.addEventListener("click", ()=>{ const user=$("#usernameInput")?.value.trim()||"Guest"; setLS(LS.username,user); setLS(LS.bankroll,1000); upsertLeaderboard(user,1000); bankrollUI(); toast("Bankroll set to $1,000"); });
+  $("#resetBankroll")?.addEventListener("click", ()=>{ setLS(LS.bankroll,0); bankrollUI(); toast("Bankroll reset"); });
   $("#placeBets")?.addEventListener("click", placeBets);
   $("#clearBets")?.addEventListener("click", ()=>{ setLS(LS.openBets,[]); renderBetSlip(); toast("Slip cleared"); });
   $("#exportHistory")?.addEventListener("click", ()=>{ const h=getLS(LS.history,[]); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(h,null,2)],{type:"application/json"})); a.download='bet_history.json'; a.click(); });
@@ -555,9 +494,37 @@
     </tbody></table>`;
   }
 
-  /* ---------- Start ---------- */
+  /* ---------- Countdown, Analytics ---------- */
+  function renderCountdown(){
+    const el=$("#nextGame"); if(!el || !STATE.schedule.length) return;
+    const upcoming = STATE.schedule.map(g=>Object.assign({}, g, { t: Date.parse(`${g.date} ${g.time} ET`) }))
+      .filter(g=>!isNaN(g.t) && g.t>Date.now()).sort((a,b)=>a.t-b.t)[0];
+    if(!upcoming){ el.textContent="Next game: TBA"; return; }
+    (function tick(){ const diff=upcoming.t - Date.now(); if(diff<=0){ el.textContent=`Gameday: vs ${upcoming.opponent}!`; return; }
+      const h=Math.floor(diff/3.6e6), m=Math.floor((diff%3.6e6)/6e4), s=Math.floor((diff%6e4)/1e3);
+      el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`;
+      requestAnimationFrame(()=>setTimeout(tick,500));
+    })();
+  }
+  function renderAnalytics(){
+    const rows=STATE.analytics.slice().reverse();
+    $("#analyticsWrap").innerHTML = rows.length
+      ? `<table><thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>ORtg</th><th>DRtg</th><th>Pace</th><th>eFG%</th><th>TO%</th><th>Box</th></tr></thead><tbody>
+          ${rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.opp)}</td><td>${r.at}</td><td>${esc(r.score)}</td><td class="stat">${r.ortg}</td><td>${r.drtg}</td><td>${r.pace}</td><td>${r.efg}</td><td>${r.toPct}</td><td><a class="boxlink" target="_blank" rel="noopener" href="${r.box}">↗</a></td></tr>`).join("")}
+        </tbody></table>`
+      : `<div class="card"><p class="tiny muted">No completed games yet.</p></div>`;
+  }
+
+  /* ---------- Init ---------- */
+  async function refreshAll(){
+    fillSeasonSelects();
+    await Promise.all([loadRosterAndStats(), loadSchedule()]);
+    renderPropsTable(); renderBetSlip(); bankrollUI(); renderLeaderboard(); loadPhotos(); loadNews(); renderCountdown();
+    await loadAnalytics();
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     route(); startHero(); refreshAll();
-    setInterval(async ()=>{ try{ await Promise.all([loadRosterAndStats(), loadSchedule()]); await loadAnalytics(); }catch(e){ diag("auto refresh: "+e.message); } }, REFRESH_MS);
+    setInterval(async ()=>{ try{ await Promise.all([loadRosterAndStats(), loadSchedule()]); await loadAnalytics(); }catch(e){} }, REFRESH_MS);
   });
 })();
