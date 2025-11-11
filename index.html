@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Florida Gators Men’s Basketball Hub</title>
   <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/5/5d/Florida_Gators_gator_logo.svg">
-  <link rel="stylesheet" href="./style.css" />
+  <!-- cache-bust CSS so GH Pages pulls the new file -->
+  <link rel="stylesheet" href="./style.css?v=4" />
+  <meta name="color-scheme" content="light dark">
 </head>
 <body>
   <!-- MASTHEAD -->
@@ -22,6 +24,7 @@
 
   <!-- HERO / CAROUSEL -->
   <section class="hero">
+    <!-- IMPORTANT: pointer-events:none so it never blocks clicks on tabs -->
     <div class="hero-images" id="heroImages" aria-hidden="true"></div>
     <div class="hero-overlay">
       <div class="hero-top">
@@ -62,7 +65,7 @@
         </div>
       </div>
       <div id="scheduleWrap" class="table-wrap"></div>
-      <p class="tiny muted">Click a row to expand details (venue, city/state, TV, notes, calendar, box link, running record).</p>
+      <p class="tiny muted">Click a row for venue, TV, notes, calendar, and box link.</p>
     </section>
 
     <!-- ROSTER -->
@@ -73,7 +76,7 @@
           <label class="select"><span>Season</span>
             <select id="rosterSeason" class="input"></select>
           </label>
-          <input id="rosterFilter" class="input" placeholder="Filter by name/pos…" />
+          <input id="rosterFilter" class="input" placeholder="Filter by name…" />
           <label class="select"><span>Only favorites</span><input id="favOnly" type="checkbox"/></label>
           <button id="refreshRoster" class="btn">Refresh</button>
         </div>
@@ -113,8 +116,6 @@
         <div class="actions">
           <label class="select"><span>Attach to game</span><select id="ticketGame" class="input"></select></label>
           <button id="shareSlip" class="btn ghost">Share Slip</button>
-          <button id="qrSlip" class="btn ghost">QR Slip</button>
-          <button id="imgSlip" class="btn ghost">Copy Slip as Image</button>
         </div>
       </div>
       <div id="propsTable" class="table-wrap"></div>
@@ -180,7 +181,7 @@
       </div>
     </section>
 
-    <!-- DIAGNOSTICS (shows fetch errors/fallbacks) -->
+    <!-- DIAGNOSTICS (open by visiting #/diag) -->
     <section id="diag" class="panel" role="tabpanel" style="display:none"></section>
   </main>
 
@@ -193,9 +194,9 @@
     </div>
   </div>
 
-  <!-- Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script src="./app.js"></script>
+  <!-- cache-bust JS so GH Pages pulls the new file -->
+  <script src="./app.js?v=4" defer></script>
 </body>
 </html>
