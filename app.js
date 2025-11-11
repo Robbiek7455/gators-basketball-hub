@@ -1,104 +1,53 @@
 /* =========================================================
-   GATORS HUB — Guaranteed Render + Live Upgrades
-   - CORS-safe HTML fetch via r.jina.ai (read-only mirror)
-   - Robust SR "commented tables" parsing
-   - Fallback data ensures the site always works
+   GATORS HUB — ESPN JSON (CORS-friendly) + SR deep links
+   - Roster, schedule & stats from ESPN public endpoints
+   - NO roster fallbacks; UI shows message if empty
+   - “Analytics” tab from per-game box scores (ORtg, eFG%, Pace)
    ========================================================= */
 
-const REFRESH_MS = 10 * 60 * 1000;
 const CURRENT_SEASON = 2026;
 const SEASONS = [2026, 2025, 2024, 2023];
+const REFRESH_MS = 10 * 60 * 1000; // auto refresh
 
-/* CORS-safe mirror: wraps any URL so browsers can fetch it */
-const JINA = (url) => `https://r.jina.ai/http://${url.replace(/^https?:\/\//,'')}`;
-
-const SR = {
-  schedule: (yr) => `https://www.sports-reference.com/cbb/schools/florida/men/${yr}-schedule.html`,
-  teamPage: (yr) => `https://www.sports-reference.com/cbb/schools/florida/men/${yr}.html`
-};
-const UF = {
-  roster:   'https://floridagators.com/sports/mens-basketball/roster',
-  schedule: 'https://floridagators.com/sports/mens-basketball/schedule',
-  rss:      'https://floridagators.com/rss.aspx?path=mbball'
-};
+/* ESPN team id for Florida */
+const TEAM_ID = 57;
+const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball";
 
 /* Helpers */
 const $  = (s, el=document) => el.querySelector(s);
 const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
 const esc = (s)=> (s||"").replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-const fmt = (n)=> (n===0||n)?Number(n).toFixed(1):'—';
-const pct = (p)=> (p===0||p)?(p>1?(p/100).toFixed(3):Number(p).toFixed(3)):'—';
+const fmt1=(n)=> (n===0||n)?Number(n).toFixed(1):'—';
+const pct3=(p)=> (p===0||p)?Number(p).toFixed(3):'—';
 const pad2=(n)=>String(n).padStart(2,'0');
-const toCSV=(rows)=> rows.map(r=> r.map(v=> `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
 function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),1600); }
-function diag(msg){ const d=$('#diag'); if(!d) return; d.style.display='block'; d.innerHTML += `<div class="card"><pre class="tiny">${esc(msg)}</pre></div>`; }
-
-/* THEME */
-function applyTheme(){
-  const saved = localStorage.getItem('ghub_theme') || 'light';
-  document.documentElement.classList.toggle('dark', saved==='dark');
-  const tgl = $('#themeToggle'); if (tgl) tgl.textContent = saved==='dark' ? '☀️' : '🌙';
-}
-$('#themeToggle')?.addEventListener('click', ()=>{
-  const now = (localStorage.getItem('ghub_theme')||'light')==='light'?'dark':'light';
-  localStorage.setItem('ghub_theme', now); applyTheme();
-});
+function applyTheme(){ const saved=localStorage.getItem('ghub_theme')||'light'; document.documentElement.classList.toggle('dark', saved==='dark'); $('#themeToggle').textContent=saved==='dark'?'☀️':'🌙'; }
+$('#themeToggle')?.addEventListener('click', ()=>{ const now=(localStorage.getItem('ghub_theme')||'light')==='light'?'dark':'light'; localStorage.setItem('ghub_theme',now); applyTheme(); });
 applyTheme();
 
-/* ROUTING (hash tabs) */
+/* Routing */
 function showTab(tab){ $$('.tab').forEach(a=> a.classList.toggle('active', a.dataset.tab===tab)); $$('.panel').forEach(p=> p.classList.toggle('active', p.id===tab)); }
 function route(){ const m = location.hash.match(/^#\/([a-z]+)/i); showTab(m ? m[1] : 'schedule'); }
 window.addEventListener('hashchange', route);
 
-/* BANNER */
+/* Hero */
 const HERO_IMAGES = [
   "https://upload.wikimedia.org/wikipedia/commons/2/28/Exactech_Arena_at_the_Stephen_C._O%27Connell_Center_court_2016.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/8/86/Florida_Gators_basketball_2006_crowd.jpg",
   "https://upload.wikimedia.org/wikipedia/commons/0/0e/Billy_Donovan_2008.jpg"
 ];
 let heroIdx=0;
-function renderHeroSlides(){
-  const mount = $('#heroImages'); if(!mount) return;
-  mount.innerHTML = HERO_IMAGES.map((src,i)=>`<div class="slide${i===0?' active':''}" style="background-image:url('${src}')"></div>`).join('');
-}
+function renderHeroSlides(){ const mount=$('#heroImages'); if(!mount) return; mount.innerHTML=HERO_IMAGES.map((src,i)=>`<div class="slide${i===0?' active':''}" style="background-image:url('${src}')"></div>`).join(''); }
 function setHero(i){ const mount=$('#heroImages'); if(!mount) return; $$('.slide', mount).forEach((s,idx)=> s.classList.toggle('active', idx===i)); }
-function startHero(){
-  renderHeroSlides();
-  setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); }, 4000);
+function startHero(){ renderHeroSlides(); setInterval(()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); }, 4000);
   $('#heroPrev')?.addEventListener('click', ()=>{ heroIdx=(heroIdx-1+HERO_IMAGES.length)%HERO_IMAGES.length; setHero(heroIdx); });
   $('#heroNext')?.addEventListener('click', ()=>{ heroIdx=(heroIdx+1)%HERO_IMAGES.length; setHero(heroIdx); });
 }
 
-/* FETCH HTML through mirror */
-async function fetchHTML(url){
-  try{
-    const r = await fetch(JINA(url));
-    if(!r.ok) throw new Error('HTTP '+r.status+' on '+url);
-    const text = await r.text();
-    return new DOMParser().parseFromString(text, 'text/html');
-  }catch(e){
-    diag(`fetchHTML failed: ${url}\n${e.message}`);
-    throw e;
-  }
-}
+/* State */
+let STATE = { season: CURRENT_SEASON, schedule: [], roster: [], stats: { team:{}, players:[] }, analytics: [] };
 
-/* SR commented table extractor */
-function parseCommentedTable(doc, id){
-  const live = doc.querySelector(`#${id}`); if(live) return live;
-  const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT, null);
-  let node; while(node = walker.nextNode()){
-    if(node.nodeValue && node.nodeValue.includes(`id="${id}"`)){
-      const frag = new DOMParser().parseFromString(node.nodeValue, 'text/html');
-      return frag.querySelector(`#${id}`);
-    }
-  }
-  return null;
-}
-
-/* STATE */
-let STATE = { season: CURRENT_SEASON, schedule: [], players: [], team: {}, ufLogos: new Map(), ufHeadshots: new Map() };
-
-/* SEASON PICKERS */
+/* Season selectors */
 function fillSeasonSelects(){
   const opts = SEASONS.map(y=> `<option value="${y}" ${y===STATE.season?'selected':''}>${y-1}-${String(y).slice(-2)}</option>`).join('');
   $('#seasonSelect').innerHTML = opts; $('#statsSeason').innerHTML = opts; $('#rosterSeason').innerHTML = opts;
@@ -107,254 +56,292 @@ function fillSeasonSelects(){
   document.addEventListener('change', (e)=>{ if(e.target && e.target.id===id){ STATE.season = Number(e.target.value); refreshAll(); }});
 });
 
-/* UF opponent logos + headshots */
-async function loadUFLogos(){
-  try{
-    const doc = await fetchHTML(UF.schedule);
-    const imgs = Array.from(doc.querySelectorAll('img')).filter(i=>/logo/i.test(i.alt||''));
-    const map = new Map(); imgs.forEach(img=>{ const name=(img.alt||'').replace(/ logo/i,'').trim(); if(name) map.set(name.toLowerCase(), img.src); });
-    STATE.ufLogos = map;
-  }catch{ /* non-critical */ }
+/* ========= ESPN fetchers ========= */
+async function espnTeam(){
+  const url = `${ESPN_BASE}/teams/${TEAM_ID}?enable=roster,statistics,record`;
+  const res = await fetch(url); if(!res.ok) throw new Error('team '+res.status);
+  return res.json();
 }
-async function loadUFHeadshots(){
-  try{
-    const doc = await fetchHTML(UF.roster);
-    const imgs = Array.from(doc.querySelectorAll('img')).filter(i=>/roster|headshot|player/i.test(i.src));
-    const map = new Map(); imgs.forEach(img=>{ const name=(img.alt||'').replace(/\s+-.*$/,'').trim(); if(name) map.set(name.toLowerCase(), img.src); });
-    STATE.ufHeadshots = map;
-  }catch{ /* non-critical */ }
+async function espnSchedule(season, seasontype){
+  const url = `${ESPN_BASE}/teams/${TEAM_ID}/schedule?season=${season}&seasontype=${seasontype}`;
+  const res = await fetch(url); if(!res.ok) throw new Error('schedule '+res.status);
+  return res.json();
 }
-const logoFor = (opp)=> STATE.ufLogos.get((opp||'').toLowerCase()) || '';
-const headshotFor = (name)=> STATE.ufHeadshots.get((name||'').toLowerCase()) || `https://source.boringavatars.com/beam/96/${encodeURIComponent(name||'Gator')}`;
+async function espnSummary(eventId){
+  const url = `${ESPN_BASE}/summary?event=${eventId}`;
+  const res = await fetch(url); if(!res.ok) throw new Error('summary '+res.status);
+  return res.json();
+}
 
-/* ========== SCHEDULE ========== */
+/* ========= Loaders ========= */
+async function loadRosterAndStats(){
+  const data = await espnTeam(); // players + team stats
+  // roster
+  const athletes = (data?.team?.athletes || []).flatMap(g=> g.items || []);
+  STATE.roster = athletes.map(a=>({
+    id:a.id, name:a.displayName, pos:a.position?.abbreviation||"", class:a.class||"", height:a.height, weight:a.weight,
+    headshot: a.headshot?.href||a.flag?.href||`https://source.boringavatars.com/beam/96/${encodeURIComponent(a.displayName)}`,
+    number:a.jersey, hometown:a.homeTown
+  }));
+  // team & player stats (season totals and per game)
+  const cats = data?.team?.team?.statistics || data?.team?.statistics || {};
+  const teamStats = (cats?.splits?.categories||[]).reduce((acc,c)=>{ (c.stats||[]).forEach(s=> acc[s.name]=+s.value||0 ); return acc; }, {});
+  const players = (data?.team?.athletes || []).flatMap(g=> (g.items||[]).map(a=>{
+    const pcat = (a.statistics?.splits?.categories||[]).reduce((acc,c)=>{ (c.stats||[]).forEach(s=> acc[s.name]=+s.value||0 ); return acc; }, {});
+    return {
+      id:a.id, name:a.displayName, link:`https://www.espn.com/mens-college-basketball/player/_/id/${a.id}`,
+      gp:pcat.gamesPlayed??null, mpg:pcat.minutesPerGame??null, ppg:pcat.pointsPerGame??null, rpg:pcat.reboundsPerGame??null,
+      apg:pcat.assistsPerGame??null, spg:pcat.stealsPerGame??null, bpg:pcat.blocksPerGame??null, tpg:pcat.turnoversPerGame??null,
+      fgPct:(pcat.fieldGoalPct??0), threePct:(pcat.threePointFieldGoalPct??0), ftPct:(pcat.freeThrowPct??0), headshot: a.headshot?.href||""
+    };
+  }));
+  STATE.stats = { team: teamStats, players };
+  renderRoster(); renderTeamStats(); renderPlayerStats(); fillCompare();
+}
+
 async function loadSchedule(){
-  const url = SR.schedule(STATE.season);
-  let rows=[];
-  try{
-    const doc = await fetchHTML(url);
-    const table = parseCommentedTable(doc,'schedule');
-    const trs = Array.from(table?.querySelectorAll('tbody tr')||[]).filter(tr=> !tr.classList.contains('thead'));
-    rows = trs.map((tr,i)=>{
-      const get = (stat) => tr.querySelector(`[data-stat="${stat}"]`);
-      const date = get('date_game')?.textContent?.trim() || '';
-      const opp  = get('opp_name')?.textContent?.trim() || '';
-      const atCode = get('game_location')?.textContent?.trim() || '';
-      const at = atCode==='@'?'Away':atCode==='N'?'Neutral':'Home';
-      const time = get('time')?.textContent?.trim() || 'TBA';
-      const res  = get('game_result')?.textContent?.trim() || '';
-      const pts  = get('pts')?.textContent?.trim() || '';
-      const oppPts = get('opp_pts')?.textContent?.trim() || '';
-      const box = get('box_score_text')?.querySelector('a')?.href || '';
-      const notes = get('notes')?.textContent?.trim() || '';
-      return { idx:i, date, time, opponent: opp, at, location: notes, result: res, score: (pts&&oppPts)?`${pts}-${oppPts}`:'', box, tv:'', venue:'', city:'' };
-    }).filter(g=>g.opponent);
-  }catch(e){
-    rows = FALLBACK.schedule[STATE.season] || [];
-    diag('Schedule: using fallback data');
-  }
-
-  // Running record
-  let w=0,l=0; rows.forEach(g=>{ if(/^W/.test(g.result)) w++; if(/^L/.test(g.result)) l++; g.record=(w||l)?`${w}-${l}`:''; });
-
-  STATE.schedule = rows;
+  const reg = await espnSchedule(STATE.season, 2); // regular season
+  let pof = {};
+  try{ pof = await espnSchedule(STATE.season, 3); }catch{}
+  const items = [...(reg?.events||[]), ...(pof?.events||[])];
+  const games = items.map(ev=>{
+    const comp = ev.competitions?.[0]||{};
+    const uf   = comp.competitors?.find(c=> c.team?.id==String(TEAM_ID));
+    const opp  = comp.competitors?.find(c=> c.team?.id!=String(TEAM_ID));
+    const homeAway = uf?.homeAway==='home'?'Home':'Away';
+    return {
+      id: ev.id,
+      date: new Date(ev.date).toLocaleString('en-US', { timeZone:'America/New_York', weekday:'short', month:'short', day:'numeric'}),
+      time: new Date(ev.date).toLocaleTimeString('en-US',{ timeZone:'America/New_York', hour:'numeric', minute:'2-digit'}),
+      opponent: opp?.team?.displayName||'TBA',
+      at: homeAway,
+      venue: comp.venue?.fullName||'TBA',
+      city: comp.venue?.address?.city||'',
+      tv: (comp.broadcasts?.[0]?.names?.[0])||'',
+      result: uf?.winner===true?'W':(opp?.winner===true?'L':''),
+      score: (uf?.score && opp?.score)?`${uf.score}-${opp.score}`:'',
+      box: ev.links?.find(l=>/boxscore/i.test(l.text||''))?.href || ''
+    };
+  });
+  STATE.schedule = games;
   renderSchedule(); renderCountdown(); fillTicketGames();
 }
 
+/* ========= Analytics =========
+   Pull each finished game’s summary and compute:
+   - Possessions ≈ FGA + 0.475*FTA − ORB + TO
+   - ORtg (points per 100 poss), eFG%, TO%, Pace
+*/
+function poss(t){ return (t.fieldGoalsAttempted||0) + 0.475*(t.freeThrowsAttempted||0) - (t.offensiveRebounds||0) + (t.turnovers||0); }
+function efg(t){ const fgm=t.fieldGoalsMade||0, fg3=t.threePointFieldGoalsMade||0, fga=t.fieldGoalsAttempted||0; return fga? (fgm+0.5*fg3)/fga : 0; }
+function tor(t){ const to=t.turnovers||0, fga=t.fieldGoalsAttempted||0, fta=t.freeThrowsAttempted||0; const denom=fga+0.475*fta; return denom? to/denom : 0; }
+
+async function loadAnalytics(){
+  const done = STATE.schedule.filter(g=> g.result).slice(-10); // last 10 finished
+  const rows = [];
+  for(const g of done){
+    try{
+      const s = await espnSummary(g.id);
+      const box = s?.boxscore?.teams || [];
+      const us  = box.find(t=> t.team?.id==String(TEAM_ID))?.statistics?.[0]?.stats || [];
+      const them= box.find(t=> t.team?.id!=String(TEAM_ID))?.statistics?.[0]?.stats || [];
+      const toMap = (arr)=> Object.fromEntries(arr.map(x=>[x.name, Number(x.value)||0]));
+      const our = toMap(us), opp = toMap(them);
+      const pOur = poss(our), pOpp = poss(opp);
+      const possEst = Math.max(1, Math.round((pOur + pOpp)/2));
+      const ptsUs = our.points||0, ptsOpp = opp.points||0;
+      rows.push({
+        date:g.date, opp:g.opponent, at:g.at, score:g.score,
+        ortg: +(ptsUs*100/possEst).toFixed(1),
+        drtg: +(ptsOpp*100/possEst).toFixed(1),
+        pace: +(possEst*40/ (our.minutes||200)).toFixed(1), // rough adjustment by minutes (5 players x 40=200)
+        efg: +(efg(our)*100).toFixed(1),
+        toPct: +(tor(our)*100).toFixed(1),
+        box: g.box || `https://www.espn.com/mens-college-basketball/game/_/gameId/${g.id}`
+      });
+    }catch(e){
+      // ignore a game if summary not available yet
+    }
+  }
+  STATE.analytics = rows;
+  renderAnalytics();
+}
+
+/* ========= Rendering ========= */
 function renderSchedule(){
   const filter = $('#schedFilter')?.value || 'ALL';
   const rows = STATE.schedule.filter(g=> filter==='ALL' ? true : g.at===filter);
   const mount = $('#scheduleWrap'); if(!mount) return;
-
   mount.innerHTML = `
     <table id="scheduleTable">
       <thead><tr>
-        <th>Date</th><th>Time (ET)</th><th>Opponent</th><th>H/A/N</th><th>Result</th><th>Score</th><th>Record</th><th>Links</th>
+        <th>Date</th><th>Time (ET)</th><th>Opponent</th><th>H/A</th><th>Result</th><th>Score</th><th>Links</th>
       </tr></thead>
       <tbody>
-        ${rows.map(g=>{
-          const logo = logoFor(g.opponent);
-          const links = [ g.box ? `<a class="boxlink" href="${g.box}" target="_blank" rel="noopener">Box ↗</a>` : '' ].filter(Boolean).join(' • ');
-          return `
-          <tr class="game-row" data-idx="${g.idx}">
+        ${rows.map(g=>`
+          <tr class="game-row" data-id="${g.id}">
             <td>${esc(g.date)}</td>
-            <td>${esc(g.time||'TBA')}</td>
-            <td><div style="display:flex;align-items:center;gap:8px">${logo?`<img src="${logo}" alt="" width="20" height="20" style="border-radius:4px">`:''}<strong>${esc(g.opponent)}</strong></div></td>
+            <td>${esc(g.time)}</td>
+            <td><strong>${esc(g.opponent)}</strong></td>
             <td>${g.at}</td>
             <td>${esc(g.result||'')}</td>
             <td>${esc(g.score||'')}</td>
-            <td>${esc(g.record||'')}</td>
-            <td>${links||'—'}</td>
+            <td>
+              ${g.box?`<a class="boxlink" target="_blank" rel="noopener" href="${g.box}">Box ↗</a>`:''}
+              <a class="boxlink" target="_blank" rel="noopener" href="https://www.sports-reference.com/cbb/boxscores/">SR box index ↗</a>
+            </td>
           </tr>
-          <tr class="details" data-det="${g.idx}" style="display:none">
-            <td colspan="8">
+          <tr class="details" data-det="${g.id}" style="display:none">
+            <td colspan="7">
               <div style="display:flex;gap:16px;flex-wrap:wrap">
                 <div><span class="tiny muted">Venue</span><div>${esc(g.venue||'TBA')}</div></div>
-                <div><span class="tiny muted">City/State</span><div>${esc(g.city||'')}</div></div>
-                <div><span class="tiny muted">TV</span><div>${esc(g.tv||'TBA')}</div></div>
-                <div><span class="tiny muted">Notes</span><div>${esc(g.location||'')}</div></div>
+                <div><span class="tiny muted">City</span><div>${esc(g.city||'')}</div></div>
+                <div><span class="tiny muted">TV</span><div>${esc(g.tv||'')}</div></div>
                 <div><button class="btn ghost addCal" data-game='${esc(JSON.stringify(g))}'>Add to Calendar</button></div>
               </div>
             </td>
-          </tr>`;
-        }).join('')}
+          </tr>`).join('')}
       </tbody>
     </table>`;
-
   $$('#scheduleTable .game-row').forEach(tr=>{
-    tr.addEventListener('click', ()=>{ const id=tr.dataset.idx; const det=$(`#scheduleTable [data-det="${id}"]`); if(det) det.style.display = det.style.display==='none' ? '' : 'none'; });
+    tr.addEventListener('click', ()=>{ const id=tr.dataset.id; const det=$(`#scheduleTable [data-det="${id}"]`); if(det) det.style.display = det.style.display==='none' ? '' : 'none'; });
   });
   $$('#scheduleTable .addCal').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); downloadICS(JSON.parse(b.dataset.game)); }));
 }
 $('#schedFilter')?.addEventListener('change', renderSchedule);
 $('#refreshSchedule')?.addEventListener('click', loadSchedule);
 $('#exportScheduleCsv')?.addEventListener('click', ()=>{
-  const rows = [["Date","Time","Opponent","H/A/N","Result","Score","Record","TV","Venue","City/State","Box"]];
-  STATE.schedule.forEach(g=> rows.push([g.date,g.time,g.opponent,g.at,g.result||"",g.score||"",g.record||"",g.tv||"",g.venue||"",g.city||"",g.box||""]));
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:"text/csv"})); a.download="gators_schedule_detailed.csv"; a.click();
+  const rows = [["Date","Time","Opponent","H/A","Result","Score","TV","Venue","City","ESPN Box"]];
+  STATE.schedule.forEach(g=> rows.push([g.date,g.time,g.opponent,g.at,g.result||"",g.score||"",g.tv||"",g.venue||"",g.city||"",g.box||""]));
+  const csv = rows.map(r=> r.map(v=> `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="gators_schedule.csv"; a.click();
 });
 function downloadICS(g){
-  const dt = new Date(`${g.date} ${g.time||'12:00 PM'} ET`);
-  const end = new Date(dt.getTime() + 2*60*60*1000);
+  const start = new Date(`${g.date} ${g.time} EST`);
+  const end = new Date(start.getTime()+2*60*60*1000);
   const toICS = (d)=> d.getUTCFullYear()+pad2(d.getUTCMonth()+1)+pad2(d.getUTCDate())+'T'+pad2(d.getUTCHours())+pad2(d.getUTCMinutes())+pad2(d.getUTCSeconds())+'Z';
   const ics = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Gators Hub//EN","BEGIN:VEVENT",
-    `UID:${Date.now()}@gatorshub`,`DTSTAMP:${toICS(new Date())}`,
-    `DTSTART:${toICS(dt)}`,`DTEND:${toICS(end)}`,
+    `UID:${g.id}@gatorshub`,`DTSTAMP:${toICS(new Date())}`,
+    `DTSTART:${toICS(start)}`,`DTEND:${toICS(end)}`,
     `SUMMARY:Florida vs ${g.opponent}`,`LOCATION:${g.venue?g.venue+', ':''}${g.city||''}`,
     "END:VEVENT","END:VCALENDAR"].join("\r\n");
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics],{type:"text/calendar"})); a.download = `UF_vs_${g.opponent.replace(/\s+/g,'_')}.ics`; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:"text/calendar"})); a.download=`UF_vs_${g.opponent.replace(/\s+/g,'_')}.ics`; a.click();
 }
 
-/* COUNTDOWN */
-function renderCountdown(){
-  const el = $('#nextGame'); if(!el || !STATE.schedule.length) return;
-  const upcoming = STATE.schedule.map(g=> ({...g, t: Date.parse(`${g.date} ${g.time||'12:00 PM'} ET`) }))
-                           .filter(g=> !isNaN(g.t) && g.t > Date.now())
-                           .sort((a,b)=>a.t-b.t)[0];
-  if(!upcoming){ el.textContent = "Next game: TBA"; return; }
-  (function tick(){ const diff = upcoming.t - Date.now(); if(diff<=0){ el.textContent = `Gameday: vs ${upcoming.opponent}!`; return; }
-    const h=Math.floor(diff/3.6e6), m=Math.floor((diff%3.6e6)/6e4), s=Math.floor((diff%6e4)/1e3);
-    el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`; requestAnimationFrame(()=> setTimeout(tick, 500)); })();
-}
-
-/* ========== STATS (per_game) ========== */
-async function loadStats(){
-  const url = SR.teamPage(STATE.season);
-  let players=[];
-  try{
-    const doc = await fetchHTML(url);
-    const table = parseCommentedTable(doc,'per_game');
-    const trs = Array.from(table?.querySelectorAll('tbody tr')||[]).filter(tr=> !tr.classList.contains('thead'));
-    players = trs.map(tr=>{
-      const get=(s)=> tr.querySelector(`[data-stat="${s}"]`)?.textContent?.trim()||'';
-      const cell = tr.querySelector('[data-stat="player"]');
-      const link = cell?.querySelector('a')?.href||'';
-      const name = cell?.textContent?.trim()||'';
-      return { name, link,
-        gp:+get('g')||null, mpg:+get('mp_per_g')||null, ppg:+get('pts_per_g')||null, rpg:+get('trb_per_g')||null, apg:+get('ast_per_g')||null,
-        spg:+get('stl_per_g')||null, bpg:+get('blk_per_g')||null, tpg:+get('tov_per_g')||null,
-        fgPct:+(get('fg_pct')||0), threePct:+(get('fg3_pct')||0), ftPct:+(get('ft_pct')||0) };
-    }).filter(p=>p.name);
-  }catch(e){
-    players = FALLBACK.players[STATE.season] || [];
-    diag('Stats: using fallback players');
-  }
-
-  STATE.players = players;
-  const n = players.length || 1, sum=(k)=>players.reduce((a,b)=>a+(b[k]||0),0);
-  STATE.team = { gp: Math.max(...players.map(p=>p.gp||0))||'—',
-    pts:+(sum('ppg')).toFixed(1), reb:+(sum('rpg')).toFixed(1), ast:+(sum('apg')).toFixed(1),
-    stl:+(sum('spg')).toFixed(1), blk:+(sum('bpg')).toFixed(1), tov:+(sum('tpg')).toFixed(1),
-    fgPct:+(players.reduce((a,b)=>a+(b.fgPct||0),0)/n).toFixed(3),
-    threePct:+(players.reduce((a,b)=>a+(b.threePct||0),0)/n).toFixed(3),
-    ftPct:+(players.reduce((a,b)=>a+(b.ftPct||0),0)/n).toFixed(3) };
-
-  renderTeamStats(); renderPlayerStats(); fillCompareOptions(); renderRoster(); renderPropsTable(); fillTicketGames();
-}
-function renderTeamStats(){
-  $('#teamStats').innerHTML = `<table><thead><tr><th>GP</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead>
-  <tbody><tr><td>${STATE.team.gp ?? '—'}</td><td class="stat">${fmt(STATE.team.pts)}</td><td>${fmt(STATE.team.reb)}</td><td>${fmt(STATE.team.ast)}</td><td>${fmt(STATE.team.stl)}</td><td>${fmt(STATE.team.blk)}</td><td>${fmt(STATE.team.tov)}</td><td>${pct(STATE.team.fgPct)}</td><td>${pct(STATE.team.threePct)}</td><td>${pct(STATE.team.ftPct)}</td></tr></tbody></table>`;
-}
-function renderPlayerStats(){
-  const q = ($('#playerFilter')?.value||"").toLowerCase();
-  let rows = STATE.players.slice(); if(q) rows = rows.filter(p=> p.name.toLowerCase().includes(q)); rows.sort((a,b)=> (b.ppg||0)-(a.ppg||0));
-  $('#playerStats').innerHTML = `<table id="playersTable"><thead><tr><th>Player</th><th>GP</th><th>MPG</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead><tbody>${
-    rows.map(p=>`<tr class="plink" data-player="${esc(p.name)}"><td><strong>${esc(p.name)}</strong></td><td>${p.gp ?? '—'}</td><td>${fmt(p.mpg)}</td><td class="stat">${fmt(p.ppg)}</td><td>${fmt(p.rpg)}</td><td>${fmt(p.apg)}</td><td>${fmt(p.spg)}</td><td>${fmt(p.bpg)}</td><td>${fmt(p.tpg)}</td><td>${pct(p.fgPct)}</td><td>${pct(p.threePct)}</td><td>${pct(p.ftPct)}</td></tr>`).join('') }</tbody></table>`;
-  $$('#playersTable .plink').forEach(tr=> tr.addEventListener('click', ()=>{ const p=STATE.players.find(x=>x.name===tr.dataset.player); openPlayerModal(p); }));
-}
-$('#playerFilter')?.addEventListener('input', renderPlayerStats);
-$('#exportPlayersCsv')?.addEventListener('click', ()=>{
-  const rows=[["Player","GP","MPG","PPG","RPG","APG","SPG","BPG","TOV","FG%","3P%","FT%","SR_Link"]];
-  STATE.players.forEach(p=> rows.push([p.name,p.gp,p.mpg,p.ppg,p.rpg,p.apg,p.spg,p.bpg,p.tpg,p.fgPct,p.threePct,p.ftPct,p.link||""]));
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([toCSV(rows)],{type:"text/csv"})); a.download="gators_players.csv"; a.click();
-});
-$('#refreshStats')?.addEventListener('click', loadStats);
-
-/* ROSTER (cards) */
+/* Roster (no fallback) */
 function renderRoster(){
+  const mount = $('#rosterGrid'); if(!mount) return;
   const q = ($('#rosterFilter')?.value||"").toLowerCase();
   const favOnly = $('#favOnly')?.checked;
   const favs = getFavs();
-  let rows = STATE.players.map(p=>({name:p.name}));
-  if(q) rows = rows.filter(p=> (p.name).toLowerCase().includes(q));
+  let rows = STATE.roster.slice();
+  if(q) rows = rows.filter(p=> p.name.toLowerCase().includes(q));
   if(favOnly) rows = rows.filter(p=> favs.includes(p.name));
-  const grid = $('#rosterGrid'); if(!grid) return;
-  grid.innerHTML = rows.map(p=>{
-    const starred = favs.includes(p.name);
-    const img = headshotFor(p.name);
-    const pstat = (STATE.players.find(x=>x.name===p.name)||{ppg:null}).ppg;
-    return `<div class="card player" data-player="${esc(p.name)}">
+  $('#rosterEmpty').style.display = rows.length? 'none':'block';
+  mount.innerHTML = rows.map(p=>`
+    <div class="card player" data-player="${esc(p.name)}">
       <div style="display:flex;gap:12px;align-items:center;">
-        <img loading="lazy" src="${img}" alt="${esc(p.name)} headshot" width="64" height="64" style="border-radius:12px;object-fit:cover" />
-        <div><div><strong>${esc(p.name)}</strong></div><div class="meta">PPG ${fmt(pstat)}</div></div>
-        <button class="btn ghost" style="margin-left:auto" data-fav="${esc(p.name)}">${starred?'⭐':'☆'}</button>
+        <img loading="lazy" src="${p.headshot}" alt="${esc(p.name)} headshot" width="64" height="64" style="border-radius:12px;object-fit:cover" />
+        <div><div><strong>${esc(p.name)}</strong> <span class="tiny muted">#${p.number||''} ${esc(p.pos||'')}</span></div><div class="meta">${esc(p.hometown||'')}</div></div>
+        <button class="btn ghost" style="margin-left:auto" data-fav="${esc(p.name)}">${favs.includes(p.name)?'⭐':'☆'}</button>
       </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
   $$('#rosterGrid [data-fav]').forEach(b=> b.addEventListener('click', (e)=>{ e.stopPropagation(); toggleFavorite(b.dataset.fav); renderRoster(); }));
-  $$('#rosterGrid .player').forEach(card=> card.addEventListener('click', ()=> openPlayerModal(STATE.players.find(x=>x.name===card.dataset.player))));
+  $$('#rosterGrid .player').forEach(card=> card.addEventListener('click', ()=> openPlayerModal(STATE.stats.players.find(x=>x.name===card.dataset.player))));
 }
 $('#rosterFilter')?.addEventListener('input', renderRoster);
 $('#favOnly')?.addEventListener('change', renderRoster);
-$('#refreshRoster')?.addEventListener('click', async ()=>{ await loadUFHeadshots(); renderRoster(); });
+$('#refreshRoster')?.addEventListener('click', async ()=>{ await loadRosterAndStats(); });
 
-function getFavs(){ try{ return JSON.parse(localStorage.getItem('ghub_favs'))||[] }catch{ return [] } }
-function setFavs(v){ localStorage.setItem('ghub_favs', JSON.stringify(v)); }
-function toggleFavorite(name){ const favs=getFavs(); const i=favs.indexOf(name); if(i>=0) favs.splice(i,1); else favs.push(name); setFavs(favs); }
+/* Stats */
+function renderTeamStats(){
+  const t = STATE.stats.team||{};
+  $('#teamStats').innerHTML = `<table><thead><tr><th>PTS/G</th><th>REB/G</th><th>AST/G</th><th>STL/G</th><th>BLK/G</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead>
+  <tbody><tr>
+    <td class="stat">${fmt1(t.pointsPerGame)}</td><td>${fmt1(t.reboundsPerGame)}</td><td>${fmt1(t.assistsPerGame)}</td><td>${fmt1(t.stealsPerGame)}</td><td>${fmt1(t.blocksPerGame)}</td>
+    <td>${pct3(t.fieldGoalPct)}</td><td>${pct3(t.threePointFieldGoalPct)}</td><td>${pct3(t.freeThrowPct)}</td></tr></tbody></table>`;
+}
+function renderPlayerStats(){
+  const q = ($('#playerFilter')?.value||"").toLowerCase();
+  let rows = STATE.stats.players.slice(); if(q) rows = rows.filter(p=> p.name.toLowerCase().includes(q)); rows.sort((a,b)=> (b.ppg||0)-(a.ppg||0));
+  $('#playerStats').innerHTML = `<table id="playersTable"><thead><tr><th>Player</th><th>GP</th><th>MPG</th><th>PPG</th><th>RPG</th><th>APG</th><th>SPG</th><th>BPG</th><th>TOV</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead><tbody>${
+    rows.map(p=>`<tr class="plink" data-player="${esc(p.name)}"><td><div style="display:flex;align-items:center;gap:8px">${p.headshot?`<img src="${p.headshot}" width="20" height="20" style="border-radius:50%">`:''}<strong>${esc(p.name)}</strong></div></td><td>${p.gp??'—'}</td><td>${fmt1(p.mpg)}</td><td class="stat">${fmt1(p.ppg)}</td><td>${fmt1(p.rpg)}</td><td>${fmt1(p.apg)}</td><td>${fmt1(p.spg)}</td><td>${fmt1(p.bpg)}</td><td>${fmt1(p.tpg)}</td><td>${pct3(p.fgPct)}</td><td>${pct3(p.threePct)}</td><td>${pct3(p.ftPct)}</td></tr>`).join('') }</tbody></table>`;
+  $$('#playersTable .plink').forEach(tr=> tr.addEventListener('click', ()=>{ const p=STATE.stats.players.find(x=>x.name===tr.dataset.player); openPlayerModal(p); }));
+}
+$('#playerFilter')?.addEventListener('input', renderPlayerStats);
+$('#exportPlayersCsv')?.addEventListener('click', ()=>{
+  const rows=[["Player","GP","MPG","PPG","RPG","APG","SPG","BPG","TOV","FG%","3P%","FT%","ESPN_Link"]];
+  STATE.stats.players.forEach(p=> rows.push([p.name,p.gp,p.mpg,p.ppg,p.rpg,p.apg,p.spg,p.bpg,p.tpg,p.fgPct,p.threePct,p.ftPct,p.link||""]));
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:"text/csv"})); a.download="gators_players.csv"; a.click();
+});
+$('#refreshStats')?.addEventListener('click', loadRosterAndStats);
 
-/* COMPARE */
-function fillCompareOptions(){
-  const A = $('#cmpA'), B=$('#cmpB'); if(!A||!B) return; A.innerHTML=""; B.innerHTML="";
-  STATE.players.forEach(p=>{ const o1=document.createElement('option'); o1.value=o1.textContent=p.name; A.appendChild(o1);
-                             const o2=document.createElement('option'); o2.value=o2.textContent=p.name; B.appendChild(o2); });
-  if(STATE.players[0]) A.value=STATE.players[0].name; if(STATE.players[1]) B.value=STATE.players[1].name;
+/* Compare */
+function fillCompare(){ const A=$('#cmpA'),B=$('#cmpB'); if(!A||!B) return; A.innerHTML=""; B.innerHTML="";
+  STATE.stats.players.forEach(p=>{ const o1=new Option(p.name,p.name); A.add(o1); const o2=new Option(p.name,p.name); B.add(o2); });
+  if(STATE.stats.players[0]) A.value=STATE.stats.players[0].name; if(STATE.stats.players[1]) B.value=STATE.stats.players[1].name;
 }
 $('#drawCompare')?.addEventListener('click', drawCompare);
 function drawCompare(){
-  const a = STATE.players.find(p=>p.name===$('#cmpA')?.value);
-  const b = STATE.players.find(p=>p.name===$('#cmpB')?.value);
-  if(!a || !b) return;
+  const a = STATE.stats.players.find(p=>p.name===$('#cmpA')?.value);
+  const b = STATE.stats.players.find(p=>p.name===$('#cmpB')?.value);
+  if(!a||!b) return;
   const metrics=["ppg","rpg","apg","spg","bpg","tpg"];
   const maxes = { ppg:30, rpg:15, apg:8, spg:3, bpg:3, tpg:5 };
-  const w=800, h=320, pad=40, col=(w-2*pad)/metrics.length;
-  const bar=(val,max)=> Math.max(2, (val/max)*(h-2*pad));
+  const w=800,h=320,pad=40,col=(w-2*pad)/metrics.length;
+  const bar=(val,max)=> Math.max(2,(val/max)*(h-2*pad));
   const svg=[`<svg viewBox="0 0 ${w} ${h}" width="100%" height="320">`,`<g font-size="12" fill="currentColor">`];
   metrics.forEach((m,i)=>{ const x=pad+i*col+col/2;
     svg.push(`<text x="${x}" y="${h-pad+18}" text-anchor="middle">${m.toUpperCase()}</text>`);
     svg.push(`<rect x="${x-22}" y="${h-pad-bar(a[m]||0,maxes[m])}" width="16" height="${bar(a[m]||0,maxes[m])}" rx="4" fill="#0021A5"></rect>`);
     svg.push(`<rect x="${x+6}"  y="${h-pad-bar(b[m]||0,maxes[m])}" width="16" height="${bar(b[m]||0,maxes[m])}" rx="4" fill="#FA4616"></rect>`);
   });
-  svg.push(`</g><g font-size="14" fill="currentColor"><text x="${pad}" y="${pad-8}"><tspan fill="#0021A5">●</tspan> ${esc(a.name)}</text><text x="${pad+200}" y="${pad-8}"><tspan fill="#FA4616">●</tspan> ${esc(b.name)}</text></g></svg>`);
+  svg.push(`</g><g font-size="14"><text x="${pad}" y="${pad-8}"><tspan fill="#0021A5">●</tspan> ${esc(a.name)}</text><text x="${pad+200}" y="${pad-8}"><tspan fill="#FA4616">●</tspan> ${esc(b.name)}</text></g></svg>`);
   $('#compareWrap').innerHTML = svg.join('');
 }
 
-/* PROPS (localStorage) */
+/* Analytics render */
+function renderAnalytics(){
+  const rows = STATE.analytics.slice().reverse();
+  $('#analyticsWrap').innerHTML = rows.length ? `<table><thead><tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>ORtg</th><th>DRtg</th><th>Pace</th><th>eFG%</th><th>TO%</th><th>Box</th></tr></thead><tbody>${
+    rows.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.opp)}</td><td>${r.at}</td><td>${esc(r.score)}</td><td class="stat">${r.ortg}</td><td>${r.drtg}</td><td>${r.pace}</td><td>${r.efg}</td><td>${r.toPct}</td><td><a class="boxlink" target="_blank" rel="noopener" href="${r.box}">↗</a></td></tr>`).join('')
+  }</tbody></table>` : `<div class="card"><p class="tiny muted">No completed games yet.</p></div>`;
+  // tiny trend SVG (ORtg last 10)
+  const w=800,h=200,pad=24, vals=rows.map(r=>r.ortg), n=vals.length||1, min=Math.min(...vals, 80), max=Math.max(...vals, 130);
+  const x=(i)=> pad + i*( (w-2*pad)/Math.max(1,n-1) ), y=(v)=> h-pad - ((v-min)/(max-min||1))*(h-2*pad);
+  const path = vals.map((v,i)=> (i?'L':'M')+x(i)+','+y(v)).join(' ');
+  $('#analyticsTrend').innerHTML = n>1 ? `<svg viewBox="0 0 ${w} ${h}" width="100%" height="200"><path d="${path}" fill="none" stroke="#FA4616" stroke-width="3"/><g font-size="12" fill="currentColor"><text x="${pad}" y="${pad}">ORtg trend (last ${n})</text></g></svg>` : '';
+}
+$('#refreshAnalytics')?.addEventListener('click', loadAnalytics);
+
+/* Player modal */
+function openPlayerModal(p){
+  const modal=$('#scoutModal'), box=$('#scoutContent');
+  if(!p){ box.innerHTML = `<p class="muted">No data.</p>`; modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); return; }
+  box.innerHTML = `<h3 style="margin-top:0">${esc(p.name)}</h3><p class="meta"><a href="${p.link}" target="_blank" rel="noopener">ESPN player profile ↗</a></p>
+    <table><tbody>
+      <tr><td>GP</td><td>${p.gp??'—'}</td></tr><tr><td>MPG</td><td>${fmt1(p.mpg)}</td></tr><tr><td>PPG</td><td>${fmt1(p.ppg)}</td></tr>
+      <tr><td>RPG</td><td>${fmt1(p.rpg)}</td></tr><tr><td>APG</td><td>${fmt1(p.apg)}</td></tr><tr><td>SPG</td><td>${fmt1(p.spg)}</td></tr>
+      <tr><td>BPG</td><td>${fmt1(p.bpg)}</td></tr><tr><td>TOV</td><td>${fmt1(p.tpg)}</td></tr><tr><td>FG%</td><td>${pct3(p.fgPct)}</td></tr>
+      <tr><td>3P%</td><td>${pct3(p.threePct)}</td></tr><tr><td>FT%</td><td>${pct3(p.ftPct)}</td></tr>
+    </tbody></table>`;
+  modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false');
+}
+$('#closeScout')?.addEventListener('click', ()=>{ const m=$('#scoutModal'); m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); });
+$('#scoutModal')?.addEventListener('click', (e)=>{ if(e.target.classList.contains('modal-bg')) $('#closeScout').click(); });
+
+/* Favorites */
+function getFavs(){ try{ return JSON.parse(localStorage.getItem('ghub_favs'))||[] }catch{ return [] } }
+function setFavs(v){ localStorage.setItem('ghub_favs', JSON.stringify(v)); }
+function toggleFavorite(name){ const favs=getFavs(); const i=favs.indexOf(name); if(i>=0) favs.splice(i,1); else favs.push(name); setFavs(favs); }
+
+/* Props (unchanged core) */
 const LS = { bankroll:"ghub_bankroll", username:"ghub_username", openBets:"ghub_openBets", history:"ghub_betHistory", board:"ghub_leaderboard" };
 const getLS = (k,d)=> { try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch{ return d } };
 const setLS = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
 function decimalFromAmerican(odds){ const o=Number(odds); return o<0 ? (100/-o)+1 : (o/100)+1; }
 function roundHalf(n){ return Math.round(n*2)/2; }
-function defaultLines(){ return (STATE.players||[]).map(p=>({ player:p.name, pts:roundHalf(p.ppg||0), reb:roundHalf(p.rpg||0), ast:roundHalf(p.apg||0), pra:roundHalf((p.ppg||0)+(p.rpg||0)+(p.apg||0)) })); }
+function defaultLines(){ return (STATE.stats.players||[]).map(p=>({ player:p.name, pts:roundHalf(p.ppg||0), reb:roundHalf(p.rpg||0), ast:roundHalf(p.apg||0), pra:roundHalf((p.ppg||0)+(p.rpg||0)+(p.apg||0)) })); }
 function bankrollUI(){ $('#bankroll').textContent = `$${Number(getLS(LS.bankroll,0)).toLocaleString()}`; $('#usernameInput').value = getLS(LS.username,"") || ""; }
 function upsertLeaderboard(user,bankroll){ const board=getLS(LS.board,[]); const i=board.findIndex(b=>b.user===user); if(i>=0)board[i].bankroll=bankroll; else board.push({user,bankroll,updated:Date.now()}); setLS(LS.board,board); renderLeaderboard(); }
 function renderLeaderboard(){ const board=getLS(LS.board,[]).sort((a,b)=>b.bankroll-a.bankroll); $('#leaderboard').innerHTML = `<table><thead><tr><th>#</th><th>User</th><th>Bankroll</th><th>Updated</th></tr></thead><tbody>${board.map((b,i)=>`<tr><td>${i+1}</td><td>${esc(b.user)}</td><td>$${Number(b.bankroll).toLocaleString()}</td><td>${new Date(b.updated||Date.now()).toLocaleString()}</td></tr>`).join('')}</tbody></table>`; }
@@ -401,75 +388,36 @@ function renderHistory(){
   }</tbody></table>`;
 }
 
-/* NEWS + PHOTOS */
-async function loadNews(){
-  try{
-    const res = await fetch(JINA(UF.rss));
-    if(!res.ok) throw new Error('rss '+res.status);
-    const xml = await res.text();
-    const items = parseRSS(xml).slice(0,12);
-    $('#newsList').innerHTML = items.map(n=>`<article class="news-card"><h4><a href="${n.link}" target="_blank" rel="noopener">${esc(n.title)}</a></h4><p>${esc(n.summary||"")}</p><p class="meta">${new Date(n.date).toLocaleString()}</p></article>`).join('');
-  }catch{ $('#newsList').innerHTML = `<article class="news-card"><h4>Welcome</h4><p class="muted">Auto schedule, stats, roster photos, news, props (for fun).</p></article>`; }
+/* Countdown */
+function renderCountdown(){
+  const el=$('#nextGame'); if(!el || !STATE.schedule.length) return;
+  const upcoming = STATE.schedule.map(g=> ({...g, t: Date.parse(`${g.date} ${g.time} ET`) }))
+                           .filter(g=> !isNaN(g.t) && g.t > Date.now())
+                           .sort((a,b)=>a.t-b.t)[0];
+  if(!upcoming){ el.textContent = "Next game: TBA"; return; }
+  (function tick(){ const diff = upcoming.t - Date.now(); if(diff<=0){ el.textContent = `Gameday: vs ${upcoming.opponent}!`; return; }
+    const h=Math.floor(diff/3.6e6), m=Math.floor((diff%3.6e6)/6e4), s=Math.floor((diff%6e4)/1e3);
+    el.textContent = `Next game vs ${upcoming.opponent}: ${h}h ${m}m ${s}s`; requestAnimationFrame(()=> setTimeout(tick, 500)); })();
 }
-function parseRSS(xml){
-  const items=[]; const itemRe=/<item[\s\S]*?<\/item>/gi, titleRe=/<title>([\s\S]*?)<\/title>/i, linkRe=/<link>([\s\S]*?)<\/link>/i, descRe=/<description>([\s\S]*?)<\/description>/i, dateRe=/<pubDate>([\s\S]*?)<\/pubDate>/i;
-  (xml.match(itemRe)||[]).forEach(b=>{
-    const title=(b.match(titleRe)?.[1]||"").replace(/<!\[CDATA\[|\]\]>/g,'').trim();
-    const link=(b.match(linkRe)?.[1]||"").trim();
-    const summary=(b.match(descRe)?.[1]||"").replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]*>/g,'').trim();
-    const date=new Date(b.match(dateRe)?.[1]||Date.now()).toISOString();
-    if(title && link) items.push({title, link, summary, date});
-  }); return items;
-}
+
+/* Photos & News (simple) */
 const PHOTOS = [
   { src:"https://upload.wikimedia.org/wikipedia/commons/2/28/Exactech_Arena_at_the_Stephen_C._O%27Connell_Center_court_2016.jpg", alt:"Exactech Arena" },
   { src:"https://upload.wikimedia.org/wikipedia/commons/8/86/Florida_Gators_basketball_2006_crowd.jpg", alt:"Gators crowd" },
   { src:"https://upload.wikimedia.org/wikipedia/commons/0/0e/Billy_Donovan_2008.jpg", alt:"Billy Donovan" }
 ];
 function loadPhotos(){ $('#photoGrid').innerHTML = PHOTOS.map(p=>`<div class="card"><img loading="lazy" src="${p.src}" alt="${esc(p.alt)}" class="photo"/><div class="meta">${esc(p.alt)}</div></div>`).join(''); }
-
-/* PLAYER MODAL */
-function openPlayerModal(p){
-  const modal=$('#scoutModal'), box=$('#scoutContent');
-  if(!p){ box.innerHTML = `<p class="muted">No data.</p>`; modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false'); return; }
-  box.innerHTML = `<h3 style="margin-top:0">${esc(p.name)}</h3><p class="meta"><a href="${p.link}" target="_blank" rel="noopener">Sports-Reference profile ↗</a></p>
-    <table><tbody>
-      <tr><td>GP</td><td>${p.gp??'—'}</td></tr><tr><td>MPG</td><td>${fmt(p.mpg)}</td></tr><tr><td>PPG</td><td>${fmt(p.ppg)}</td></tr>
-      <tr><td>RPG</td><td>${fmt(p.rpg)}</td></tr><tr><td>APG</td><td>${fmt(p.apg)}</td></tr><tr><td>SPG</td><td>${fmt(p.spg)}</td></tr>
-      <tr><td>BPG</td><td>${fmt(p.bpg)}</td></tr><tr><td>TOV</td><td>${fmt(p.tpg)}</td></tr><tr><td>FG%</td><td>${pct(p.fgPct)}</td></tr>
-      <tr><td>3P%</td><td>${pct(p.threePct)}</td></tr><tr><td>FT%</td><td>${pct(p.ftPct)}</td></tr>
-    </tbody></table>`;
-  modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false');
-}
-$('#closeScout')?.addEventListener('click', ()=>{ const m=$('#scoutModal'); m.classList.add('hidden'); m.setAttribute('aria-hidden','true'); });
-$('#scoutModal')?.addEventListener('click', (e)=>{ if(e.target.classList.contains('modal-bg')) $('#closeScout').click(); });
-
-/* FALLBACK data keeps the app functional */
-const FALLBACK = {
-  players: {
-    2026: [
-      { name:"Gator Guard", link:"#", gp:30, mpg:30.1, ppg:17.2, rpg:3.1, apg:4.5, spg:1.2, bpg:0.2, tpg:2.1, fgPct:.445, threePct:.367, ftPct:.812 },
-      { name:"Gator Wing",  link:"#", gp:31, mpg:28.4, ppg:14.0, rpg:5.6, apg:2.4, spg:0.9, bpg:0.6, tpg:1.8, fgPct:.471, threePct:.341, ftPct:.761 },
-      { name:"Gator Big",   link:"#", gp:29, mpg:25.3, ppg:11.5, rpg:7.8, apg:1.1, spg:0.6, bpg:1.3, tpg:1.5, fgPct:.552, threePct:.100, ftPct:.701 }
-    ]
-  },
-  schedule: {
-    2026: [
-      { idx:0, date:"Nov 7, 2025", time:"7:00 PM", opponent:"Stetson", at:"Home", location:"Exactech Arena", result:"", score:"", box:"", tv:"SECN+", venue:"Exactech Arena", city:"Gainesville, FL", record:"" },
-      { idx:1, date:"Nov 12, 2025", time:"8:00 PM", opponent:"Florida State", at:"Home", location:"Rivalry Game", result:"", score:"", box:"", tv:"ESPN2", venue:"Exactech Arena", city:"Gainesville, FL", record:"" }
-    ]
-  }
-};
+async function loadNews(){ try{ const r=await fetch('https://floridagators.com/rss.aspx?path=mbball'); const xml=await r.text(); const items=[]; const itemRe=/<item[\s\S]*?<\/item>/gi, titleRe=/<title>([\s\S]*?)<\/title>/i, linkRe=/<link>([\s\S]*?)<\/link>/i, dateRe=/<pubDate>([\s\S]*?)<\/pubDate>/i, descRe=/<description>([\s\S]*?)<\/description>/i; (xml.match(itemRe)||[]).slice(0,12).forEach(b=>{ const title=(b.match(titleRe)?.[1]||"").replace(/<!\[CDATA\[|\]\]>/g,'').trim(); const link=(b.match(linkRe)?.[1]||"").trim(); const summary=(b.match(descRe)?.[1]||"").replace(/<!\[CDATA\[|\]\]>/g,'').replace(/<[^>]*>/g,'').trim(); const date=new Date(b.match(dateRe)?.[1]||Date.now()).toISOString(); if(title&&link) items.push({title, link, summary, date}); }); $('#newsList').innerHTML = items.map(n=>`<article class="news-card"><h4><a href="${n.link}" target="_blank" rel="noopener">${esc(n.title)}</a></h4><p>${esc(n.summary||"")}</p><p class="meta">${new Date(n.date).toLocaleString()}</p></article>`).join(''); }catch{ $('#newsList').innerHTML = `<article class="news-card"><h4>Welcome</h4><p class="muted">Live schedule/roster/stats + analytics.</p></article>`; }}
 
 /* INIT */
 async function refreshAll(){
   fillSeasonSelects();
-  await Promise.all([loadUFLogos(), loadUFHeadshots(), loadSchedule(), loadStats()]);
-  renderPropsTable(); renderBetSlip(); bankrollUI(); renderLeaderboard(); renderHistory(); drawCompare(); loadPhotos(); loadNews();
+  await Promise.all([loadRosterAndStats(), loadSchedule()]);
+  renderPropsTable(); renderBetSlip(); bankrollUI(); renderLeaderboard(); loadPhotos(); loadNews(); await loadAnalytics();
 }
 function routeAndStart(){ route(); startHero(); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   routeAndStart();
   await refreshAll();
-  setInterval(async ()=>{ await Promise.all([loadSchedule(), loadStats(), loadUFLogos()]); renderPlayerStats(); renderTeamStats(); renderSchedule(); }, REFRESH_MS);
+  setInterval(async ()=>{ await Promise.all([loadRosterAndStats(), loadSchedule()]); await loadAnalytics(); }, REFRESH_MS);
 });
